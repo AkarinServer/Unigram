@@ -3,6 +3,9 @@
 
 #include <iostream>  
 #include <iomanip>
+#include <sstream>
+#include <windows.h>
+#include "Shlwapi.h"
 
 using namespace Windows::UI::Notifications;
 using namespace Windows::ApplicationModel::Resources;
@@ -10,6 +13,7 @@ using namespace Windows::Data::Json;
 using namespace Windows::Data::Xml::Dom;
 using namespace Unigram::Native::Tasks;
 using namespace Platform;
+using namespace Windows::Storage;
 
 void NotificationTask::Run(IBackgroundTaskInstance^ taskInstance)
 {
@@ -52,22 +56,37 @@ void NotificationTask::UpdateToastAndTiles(String^ content)
 	if (!muted)
 	{
 		auto loc_key = data->GetNamedString("loc_key");
-		auto custom = data->GetNamedObject("custom");
 		auto loc_args = data->GetNamedArray("loc_args");
+		auto custom = data->GetNamedObject("custom", nullptr);
 
 		auto caption = GetCaption(loc_args, loc_key);
 		auto message = GetMessage(loc_args, loc_key);
-		auto sound = ref new String(L"Default"); // data->GetNamedString("sound");
+		auto sound = data->GetNamedString("sound", "Default");
 		auto launch = GetLaunch(custom, loc_key);
-		auto tag = GetTag(custom);
 		auto group = GetGroup(custom);
+		auto picture = GetPicture(custom, group);
+		auto date = GetDate(notification);
 
-		UpdateToast(caption, message, sound, launch, tag, group);
-		UpdateBadge(data->GetNamedNumber("badge"));
-
-		if (loc_key != L"DC_UPDATE") 
+		if (loc_key->Equals(L"PHONE_CALL_MISSED"))
 		{
-			UpdateTile(caption, message);
+			//ToastNotificationManager::History->Remove(L"phoneCall");
+		}
+
+		if (loc_key->Equals(L"PHONE_CALL_REQUEST")) 
+		{
+			//UpdatePhoneCall(caption, message, sound, launch, L"phoneCall", group, picture, date, loc_key);
+		}
+		else
+		{
+			auto tag = GetTag(custom);
+
+			UpdateToast(caption, message, sound, launch, tag, group, picture, date, loc_key);
+			UpdateBadge(data->GetNamedNumber("badge"));
+
+			if (loc_key != L"DC_UPDATE")
+			{
+				UpdateTile(caption, message);
+			}
 		}
 	}
 }
@@ -89,6 +108,10 @@ String^ NotificationTask::GetCaption(JsonArray^ loc_args, String^ loc_key)
 		return loc_args->GetStringAt(0);
 	}
 	else if (key.find(L"PINNED") == 0)
+	{
+		return loc_args->GetStringAt(0);
+	}
+	else if (key.find(L"PHONE_CALL") == 0)
 	{
 		return loc_args->GetStringAt(0);
 	}
@@ -123,29 +146,42 @@ String^ NotificationTask::GetMessage(JsonArray^ loc_args, String^ loc_key)
 String^ NotificationTask::GetLaunch(JsonObject^ custom, String^ loc_key)
 {
 	std::wstring launch = L"";
-	if (custom->HasKey("msg_id"))
+	if (custom)
 	{
-		launch += L"msg_id=";
-		launch += custom->GetNamedString("msg_id")->Data();
-		launch += L"&amp;";
-	}
-	if (custom->HasKey("chat_id"))
-	{
-		launch += L"chat_id=";
-		launch += custom->GetNamedString("chat_id")->Data();
-		launch += L"&amp;";
-	}
-	if (custom->HasKey("channel_id"))
-	{
-		launch += L"channel_id=";
-		launch += custom->GetNamedString("channel_id")->Data();
-		launch += L"&amp;";
-	}
-	if (custom->HasKey("from_id"))
-	{
-		launch += L"from_id=";
-		launch += custom->GetNamedString("from_id")->Data();
-		launch += L"&amp;";
+		if (custom->HasKey("msg_id"))
+		{
+			launch += L"msg_id=";
+			launch += custom->GetNamedString("msg_id")->Data();
+			launch += L"&amp;";
+		}
+		if (custom->HasKey("chat_id"))
+		{
+			launch += L"chat_id=";
+			launch += custom->GetNamedString("chat_id")->Data();
+			launch += L"&amp;";
+		}
+		if (custom->HasKey("channel_id"))
+		{
+			launch += L"channel_id=";
+			launch += custom->GetNamedString("channel_id")->Data();
+			launch += L"&amp;";
+		}
+		if (custom->HasKey("from_id"))
+		{
+			launch += L"from_id=";
+			launch += custom->GetNamedString("from_id")->Data();
+			launch += L"&amp;";
+		}
+		if (custom->HasKey("mtpeer"))
+		{
+			auto mtpeer = custom->GetNamedObject("mtpeer");
+			if (mtpeer->HasKey("ah"))
+			{
+				launch += L"access_hash=";
+				launch += mtpeer->GetNamedString("ah")->Data();
+				launch += L"&amp;";
+			}
+		}
 	}
 
 	launch += L"Action=";
@@ -156,25 +192,128 @@ String^ NotificationTask::GetLaunch(JsonObject^ custom, String^ loc_key)
 
 String^ NotificationTask::GetTag(JsonObject^ custom)
 {
-	return custom->GetNamedString("msg_id");
+	if (custom) 
+	{
+		return custom->GetNamedString("msg_id");
+	}
+
+	return nullptr;
 }
 
 String^ NotificationTask::GetGroup(JsonObject^ custom)
 {
-	if (custom->HasKey("chat_id"))
+	if (custom)
 	{
-		return String::Concat("c", custom->GetNamedString("chat_id"));
-	}
-	else if (custom->HasKey("channel_id"))
-	{
-		return String::Concat("c", custom->GetNamedString("channel_id"));
-	}
-	else if (custom->HasKey("from_id"))
-	{
-		return String::Concat("u", custom->GetNamedString("from_id"));
+		if (custom->HasKey("chat_id"))
+		{
+			return String::Concat("c", custom->GetNamedString("chat_id"));
+		}
+		else if (custom->HasKey("channel_id"))
+		{
+			return String::Concat("c", custom->GetNamedString("channel_id"));
+		}
+		else if (custom->HasKey("from_id"))
+		{
+			return String::Concat("u", custom->GetNamedString("from_id"));
+		}
+		else if (custom->HasKey("contact_id"))
+		{
+			return String::Concat("u", custom->GetNamedString("contact_id"));
+		}
 	}
 
 	return nullptr;
+}
+
+String^ NotificationTask::GetPicture(JsonObject^ custom, String^ group)
+{
+	if (custom && custom->HasKey("mtpeer"))
+	{
+		auto mtpeer = custom->GetNamedObject("mtpeer");
+		if (mtpeer->HasKey("ph"))
+		{
+			auto ph = mtpeer->GetNamedObject("ph");
+			auto volume_id = ph->GetNamedString("volume_id");
+			auto local_id = ph->GetNamedString("local_id");
+			auto secret = ph->GetNamedString("secret");
+
+			std::wstring volumeSTR = volume_id->Data();
+			auto volumeULL = wcstoull(volumeSTR.c_str(), NULL, 0);
+			auto volumeLL = static_cast<signed long long>(volumeULL);
+
+			std::wstring secretSTR = secret->Data();
+			auto secretULL = wcstoull(secretSTR.c_str(), NULL, 0);
+			auto secretLL = static_cast<signed long long>(secretULL);
+
+			auto temp = ApplicationData::Current->LocalFolder->Path;
+
+			auto settings = ApplicationData::Current->LocalSettings;
+			if (settings->Values->HasKey("SessionGuid"))
+			{
+				auto guid = safe_cast<String^>(settings->Values->Lookup("SessionGuid"));
+
+				std::wstringstream path;
+				path << temp->Data()
+					<< L"\\"
+					<< guid->Data()
+					<< L"\\temp\\"
+					<< volumeLL
+					<< L"_"
+					<< local_id->Data()
+					<< L"_"
+					<< secretLL
+					<< L".jpg";
+
+				WIN32_FIND_DATA FindFileData;
+				HANDLE handle = FindFirstFile(path.str().c_str(), &FindFileData);
+				int found = handle != INVALID_HANDLE_VALUE;
+				if (found)
+				{
+					FindClose(handle);
+
+					std::wstringstream almost;
+					almost << L"ms-appdata:///local/"
+						<< guid->Data()
+						<< "/temp/"
+						<< volumeLL
+						<< L"_"
+						<< local_id->Data()
+						<< L"_"
+						<< secretLL
+						<< L".jpg";
+
+					return ref new String(almost.str().c_str());
+				}
+			}
+		}
+	}
+
+	auto settings = ApplicationData::Current->LocalSettings;
+	if (settings->Values->HasKey("SessionGuid"))
+	{
+		auto guid = safe_cast<String^>(settings->Values->Lookup("SessionGuid"));
+
+		std::wstringstream almost;
+		almost << L"ms-appdata:///local/"
+			<< guid->Data()
+			<< L"/temp/placeholders/"
+			<< group->Data()
+			<< L"_placeholder.png";
+
+		return ref new String(almost.str().c_str());
+	}
+
+	return ref new String();
+}
+
+String^ NotificationTask::GetDate(JsonObject^ notification)
+{
+	const time_t rawtime = notification->GetNamedNumber(L"date");
+	struct tm dt;
+	wchar_t buffer[30];
+	localtime_s(&dt, &rawtime);
+	wcsftime(buffer, sizeof(buffer), L"%FT%T%zZ", &dt);
+	return ref new String(buffer);
 }
 
 void NotificationTask::UpdateBadge(int badgeNumber)
@@ -195,7 +334,7 @@ void NotificationTask::UpdateBadge(int badgeNumber)
 
 void NotificationTask::UpdateTile(String^ caption, String^ message)
 {
-	std::wstring body =  L"<text hint-style='body'><![CDATA[";
+	std::wstring body = L"<text hint-style='body'><![CDATA[";
 	body += caption->Data();
 	body += L"]]></text>";
 	body += L"<text hint-style='captionSubtle' hint-wrap='true'><![CDATA[";
@@ -222,10 +361,11 @@ void NotificationTask::UpdateTile(String^ caption, String^ message)
 	updater->Update(notification);
 }
 
-void NotificationTask::UpdateToast(String^ caption, String^ message, String^ sound, String^ launch, String^ tag, String^ group)
+void NotificationTask::UpdateToast(String^ caption, String^ message, String^ sound, String^ launch, String^ tag, String^ group, String^ picture, String^ date, String^ loc_key)
 {
+	std::wstring key = loc_key->Data();
 	std::wstring actions = L"";
-	if (group != nullptr)
+	if (group != nullptr && key.find(L"CHANNEL"))
 	{
 		actions = L"<actions><input id='QuickMessage' type='text' placeHolderContent='Type a message...' /><action activationType='background' arguments='";
 		actions += launch->Data();
@@ -234,11 +374,69 @@ void NotificationTask::UpdateToast(String^ caption, String^ message, String^ sou
 
 	std::wstring xml = L"<toast launch='";
 	xml += launch->Data();
-	xml += L"'><visual><binding template='ToastGeneric'><text><![CDATA[";
+	xml += L"' displaytimestamp='";
+	xml += date->Data();
+	xml += L"'><visual><binding template='ToastGeneric'>";
+
+	if (picture != nullptr)
+	{
+		xml += L"<image placement='appLogoOverride' hint-crop='circle' src='";
+		xml += picture->Data();
+		xml += L"'/>";
+	}
+
+	xml += L"<text><![CDATA[";
 	xml += caption->Data();
 	xml += L"]]></text><text><![CDATA[";
 	xml += message->Data();
-	xml += L"]]></text><text placement='attribution'>Unigram</text></binding></visual>";
+	//xml += L"]]></text><text placement='attribution'>Unigram</text></binding></visual>";
+	xml += L"]]></text></binding></visual>";
+	xml += actions;
+	xml += L"</toast>";
+
+	auto notifier = ToastNotificationManager::CreateToastNotifier();
+
+	auto document = ref new XmlDocument();
+	document->LoadXml(ref new String(xml.c_str()));
+
+	auto notification = ref new ToastNotification(document);
+
+	if (tag != nullptr) notification->Tag = tag;
+	if (group != nullptr) notification->Group = group;
+
+	notifier->Show(notification);
+}
+
+void NotificationTask::UpdatePhoneCall(String^ caption, String^ message, String^ sound, String^ launch, String^ tag, String^ group, String^ picture, String^ date, String^ loc_key)
+{
+	std::wstring key = loc_key->Data();
+	std::wstring actions = L"";
+	if (group != nullptr && key.find(L"CHANNEL"))
+	{
+		actions = L"<actions>";
+		actions += L"<action content='Ignore' imageUri='Assets/Icons/cancel.png' activationType='background' arguments='action=ignore&amp;callId=938163'/>";
+		actions += L"<action content='Answer' imageUri='Assets/Icons/telephone.png' arguments='action=answer&amp;callId=938163'/>";
+		actions += L"</actions>";
+	}
+
+	std::wstring xml = L"<toast launch='";
+	xml += launch->Data();
+	xml += L"' scenario='incomingCall'><visual><binding template='ToastGeneric'>";
+
+	xml += L"<text><![CDATA[";
+	xml += caption->Data();
+	xml += L"]]></text><text><![CDATA[";
+	xml += message->Data();
+	xml += L"]]></text>";
+
+	if (picture != nullptr)
+	{
+		xml += L"<image hint-crop='circle' src='";
+		xml += picture->Data();
+		xml += L"'/>";
+	}
+
+	xml += L"</binding></visual>";
 	xml += actions;
 	xml += L"</toast>";
 

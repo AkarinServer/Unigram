@@ -108,6 +108,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Common\DisposableMutex.cs" />
+    <Compile Include="Common\KeyedList.cs" />
+    <Compile Include="Database\DatabaseContext.cs" />
     <Compile Include="Dependency\UnigramContainerBuilder.cs" />
     <Compile Include="Helpers\ImageHelper.cs" />
     <Compile Include="Managers\BackgroundTaskManager.cs" />
@@ -124,7 +126,24 @@
     <Compile Include="Rtf\RtfSarParser.cs" />
     <Compile Include="Rtf\RtfToken.cs" />
     <Compile Include="Rtf\RtfTokenType.cs" />
+    <Compile Include="Rtf\Write\RtfAbstract.cs" />
+    <Compile Include="Rtf\Write\RtfBasics.cs" />
+    <Compile Include="Rtf\Write\RtfBlockList.cs" />
+    <Compile Include="Rtf\Write\RtfCharFormat.cs" />
+    <Compile Include="Rtf\Write\RtfDocument.cs" />
+    <Compile Include="Rtf\Write\RtfFieldControlWord.cs" />
+    <Compile Include="Rtf\Write\RtfFootnote.cs" />
+    <Compile Include="Rtf\Write\RtfHeaderFooter.cs" />
+    <Compile Include="Rtf\Write\RtfImage.cs" />
+    <Compile Include="Rtf\Write\RtfParagraph.cs" />
+    <Compile Include="Rtf\Write\RtfSection.cs" />
+    <Compile Include="Rtf\Write\RtfSectionFooter.cs" />
+    <Compile Include="Rtf\Write\RtfTable.cs" />
+    <Compile Include="Rtf\Write\RtfTableCell.cs" />
+    <Compile Include="Rtf\Write\RtfUtility.cs" />
+    <Compile Include="Services\ContactsService.cs" />
     <Compile Include="Services\DialogsService.cs" />
+    <Compile Include="Services\GifsService.cs" />
     <Compile Include="Services\HardwareService.cs" />
     <Compile Include="Services\JumpListService.cs" />
     <Compile Include="Services\KeyboardService.cs" />
@@ -132,6 +151,7 @@
     <Compile Include="Services\IExtendedDeviceInfoService.cs" />
     <Compile Include="Services\DeviceInfoService.cs" />
     <Compile Include="Services\PushService.cs" />
+    <Compile Include="Services\StickersService.cs" />
     <Compile Include="Services\TLSerializationService.cs" />
     <Compile Include="Unidecode\Characters.cs" />
     <Compile Include="Unidecode\Unidecoder.cs" />

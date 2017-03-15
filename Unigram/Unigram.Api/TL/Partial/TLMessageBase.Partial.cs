@@ -14,7 +14,11 @@ namespace Telegram.Api.TL
     public abstract partial class TLMessageBase : ITLRandomId, INotifyPropertyChanged
     {
         // TODO:
-        public bool IsUnread { get; set; } = false;
+        public bool IsUnread
+        {
+            get;
+            set;
+        } = false;
 
         public TLMessageBase Reply { get; set; }
 
@@ -80,7 +84,7 @@ namespace Telegram.Api.TL
                 {
                     var instance = InMemoryCacheService.Current;
                     var channel = instance.GetChat(ToId.Id) as TLChannel;
-                    if (channel != null && channel.IsMegagroup)
+                    if (channel != null && channel.IsMegaGroup)
                     {
                         return true;
                     }
@@ -106,6 +110,28 @@ namespace Telegram.Api.TL
             }
         }
 
+        private ITLDialogWith _parent;
+        public ITLDialogWith Parent
+        {
+            get
+            {
+                if (_parent == null)
+                {
+                    if (this is TLMessageCommonBase messageCommon)
+                    {
+                        var peer = messageCommon.IsOut || messageCommon.ToId is TLPeerChannel || messageCommon.ToId is TLPeerChat ? messageCommon.ToId : new TLPeerUser { UserId = messageCommon.FromId.Value };
+                        if (peer is TLPeerUser)
+                            _parent = InMemoryCacheService.Current.GetUser(peer.Id);
+                        if (peer is TLPeerChat || ToId is TLPeerChannel)
+                            _parent = InMemoryCacheService.Current.GetChat(peer.Id);
+                    }
+
+                }
+
+                return _parent;
+            }
+        }
+
         private bool _isFirst;
         public bool IsFirst
         {
@@ -118,6 +144,23 @@ namespace Telegram.Api.TL
                 if (_isFirst != value)
                 {
                     _isFirst = value;
+                    RaisePropertyChanged();
+                }
+            }
+        }
+
+        private bool _isLast;
+        public bool IsLast
+        {
+            get
+            {
+                return _isLast;
+            }
+            set
+            {
+                if (_isLast != value)
+                {
+                    _isLast = value;
                     RaisePropertyChanged();
                 }
             }
@@ -395,11 +438,12 @@ namespace Telegram.Api.TL
                 EditDate = message.EditDate;
 
                 Message = message.Message;
+                HasEntities = message.HasEntities;
                 Entities = message.Entities;
                 ReplyMarkup = message.ReplyMarkup;
                 var webpageOld = Media as TLMessageMediaWebPage;
                 var webpageNew = message.Media as TLMessageMediaWebPage;
-                if ((webpageOld == null && webpageNew != null) || (webpageOld != null && webpageNew == null) || (webpageOld != null && webpageNew != null && webpageOld.Webpage.Id != webpageNew.Webpage.Id))
+                if ((webpageOld == null && webpageNew != null) || (webpageOld != null && webpageNew == null) || (webpageOld != null && webpageNew != null && webpageOld.WebPage.Id != webpageNew.WebPage.Id))
                 {
                     Media = (TLMessageMediaBase)webpageNew ?? new TLMessageMediaEmpty();
                 }
@@ -435,7 +479,7 @@ namespace Telegram.Api.TL
 
             if (m.Views != null)
             {
-                var currentViews = Views != null ? Views : 0;
+                var currentViews = Views ?? 0;
                 if (currentViews < m.Views)
                 {
                     Views = m.Views;
@@ -629,13 +673,13 @@ namespace Telegram.Api.TL
             }
         }
 
-        private TLChatBase _fwdFromChannel;
-        public TLChatBase FwdFromChannel
+        private TLChannel _fwdFromChannel;
+        public TLChannel FwdFromChannel
         {
             get
             {
                 if (_fwdFromChannel == null && HasFwdFrom && FwdFrom != null && FwdFrom.HasChannelId)
-                    _fwdFromChannel = InMemoryCacheService.Current.GetChat(FwdFrom.ChannelId);
+                    _fwdFromChannel = InMemoryCacheService.Current.GetChat(FwdFrom.ChannelId) as TLChannel;
 
                 return _fwdFromChannel;
             }
@@ -672,5 +716,29 @@ namespace Telegram.Api.TL
             }
         }
 
+    }
+
+    public partial class TLMessage
+    {
+        public TLMessage Clone()
+        {
+            var clone = new TLMessage();
+            clone.Flags = Flags;
+            clone.Id = Id;
+            clone.FromId = FromId;
+            clone.ToId = ToId;
+            clone.FwdFrom = FwdFrom;
+            clone.ViaBotId = ViaBotId;
+            clone.ReplyToMsgId = ReplyToMsgId;
+            clone.Date = Date;
+            clone.Message = Message;
+            clone.Media = Media;
+            clone.ReplyMarkup = ReplyMarkup;
+            clone.Entities = Entities;
+            clone.Views = Views;
+            clone.EditDate = EditDate;
+
+            return clone;
+        }
     }
 }

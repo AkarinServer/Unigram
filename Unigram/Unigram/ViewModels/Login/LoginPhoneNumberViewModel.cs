@@ -10,14 +10,20 @@ using Telegram.Api.Helpers;
 using Windows.UI.Popups;
 using Telegram.Api.TL;
 using Telegram.Api;
+using Windows.UI.Xaml;
+using System.ComponentModel;
+using System.Threading.Tasks;
+using Windows.UI.Xaml.Navigation;
 
 namespace Unigram.ViewModels.Login
 {
+
     public class LoginPhoneNumberViewModel : UnigramViewModelBase
     {
         public LoginPhoneNumberViewModel(IMTProtoService protoService, ICacheService cacheService, ITelegramEventAggregator aggregator)
             : base(protoService, cacheService, aggregator)
         {
+
             var alphabet = "abcdefghijklmnopqrstuvwxyz";
             var list = new List<KeyedList<string, Country>>(alphabet.Length);
             var dictionary = new Dictionary<string, KeyedList<string, Country>>();
@@ -53,6 +59,12 @@ namespace Unigram.ViewModels.Login
             {
                 GotUserCountry(this, new CountryEventArgs { Country = ProtoService.Country });
             }
+        }
+
+        public override Task OnNavigatedToAsync(object parameter, NavigationMode mode, IDictionary<string, object> state)
+        {
+            IsLoading = false;
+            return Task.CompletedTask;
         }
 
         private void GotUserCountry(object sender, CountryEventArgs e)
@@ -147,26 +159,48 @@ namespace Unigram.ViewModels.Login
             }
         }
 
+        private bool _isLoading;
+        public bool IsLoading
+        {
+            get
+            {
+                return _isLoading;
+            }
+            set
+            {
+                Set(ref _isLoading, value);
+                SendCommand.RaiseCanExecuteChanged();
+            }
+        }
+
         public List<KeyedList<string, Country>> Countries { get; private set; }
 
-        public RelayCommand SendCommand => new RelayCommand(SendExecute);
+        private RelayCommand _sendCommand;
+        public RelayCommand SendCommand => _sendCommand = _sendCommand ?? new RelayCommand(SendExecute, () => !IsLoading);
         private async void SendExecute()
         {
-            var result = await ProtoService.SendCodeAsync(PhoneCode.TrimStart('+') + PhoneNumber, /* TODO: Verify */ null);
+            if(PhoneCode == null || PhoneNumber == null)
+            {
+                await new MessageDialog("Please type phone number and phone code").ShowAsync();
+                return;
+            }
+
+            IsLoading = true;
+
+            var result = await ProtoService.SendCodeAsync(PhoneCode + PhoneNumber, /* TODO: Verify */ null);
             if (result?.IsSucceeded == true)
             {
                 var state = new LoginPhoneCodePage.NavigationParameters
                 {
                     PhoneNumber = PhoneCode.TrimStart('+') + PhoneNumber,
-                    PhoneCodeHash = result.Value.PhoneCodeHash,
-                    //PhoneRegistered = result.Value.PhoneRegistered.Value,
-                    //PhoneCallTimeout = result.Value.SendCallTimeout.Value
+                    Result = result.Result,
                 };
 
                 NavigationService.Navigate(typeof(LoginPhoneCodePage), state);
             }
             else if (result.Error != null)
             {
+                IsLoading = false;
                 await new MessageDialog(result.Error.ErrorMessage, result.Error.ErrorCode.ToString()).ShowAsync();
             }
         }

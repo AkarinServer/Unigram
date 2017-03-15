@@ -23,7 +23,7 @@ namespace Unigram.Controls
 
     public class ReplyMarkupPanel : Grid
     {
-        private double _keyboardHeight = 200;
+        private double _keyboardHeight = 300;
 
         #region IsInline
 
@@ -63,14 +63,14 @@ namespace Unigram.Controls
 
         private void OnIsInlineChanged(bool newValue, bool oldValue)
         {
-            if (newValue)
-            {
-                InputPane.GetForCurrentView().Showing -= InputPane_Showing;
-            }
-            else
-            {
-                InputPane.GetForCurrentView().Showing += InputPane_Showing;
-            }
+            //if (newValue)
+            //{
+            //    InputPane.GetForCurrentView().Showing -= InputPane_Showing;
+            //}
+            //else
+            //{
+            //    InputPane.GetForCurrentView().Showing += InputPane_Showing;
+            //}
         }
 
         private void InputPane_Showing(InputPane sender, InputPaneVisibilityEventArgs args)
@@ -118,6 +118,7 @@ namespace Unigram.Controls
 
             UpdateSize();
             Children.Clear();
+            RowDefinitions.Clear();
 
             if (rows != null && ((IsInline && newValue is TLReplyInlineMarkup) || (!IsInline && newValue is TLReplyKeyboardMarkup)))
             {
@@ -128,14 +129,14 @@ namespace Unigram.Controls
                     var panel = new Grid();
                     panel.HorizontalAlignment = HorizontalAlignment.Stretch;
                     panel.VerticalAlignment = VerticalAlignment.Stretch;
-                    panel.Margin = new Thickness(-4, 0, -4, 0);
+                    panel.Margin = new Thickness(-2, 0, -2, 0);
 
                     for (int i = 0; i < row.Buttons.Count; i++)
                     {
                         var button = new GlyphButton();
                         button.DataContext = row.Buttons[i];
                         button.Content = row.Buttons[i].Text;
-                        button.Margin = new Thickness(4);
+                        button.Margin = new Thickness(2);
                         button.HorizontalAlignment = HorizontalAlignment.Stretch;
                         button.VerticalAlignment = VerticalAlignment.Stretch;
                         button.Click += Button_Click;
@@ -151,11 +152,15 @@ namespace Unigram.Controls
 
                         if (row.Buttons[i] is TLKeyboardButtonUrl)
                         {
-                            button.Glyph = "\uE12B";
+                            button.Glyph = "\uE143";
                         }
                         else if (row.Buttons[i] is TLKeyboardButtonSwitchInline)
                         {
                             button.Glyph = "\uE248";
+                        }
+                        else if (row.Buttons[i] is TLKeyboardButton && IsInline)
+                        {
+                            button.Glyph = "\uE15F";
                         }
 
                         Grid.SetColumn(button, i);

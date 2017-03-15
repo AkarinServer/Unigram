@@ -12,17 +12,18 @@ namespace Telegram.Api.Services
 {
     public partial interface IMTProtoService
     {
+        Task<MTProtoResponse<TLMessagesChatsBase>> GetAdminedPublicChannelsAsync();
         Task<MTProtoResponse<TLAuthSentCode>> SendCodeAsync(string phoneNumber, bool? currentNumber, Action<int> attemptFailed = null);
         Task<MTProtoResponse<TLMessagesRecentStickersBase>> GetRecentStickersAsync(bool attached, int hash);
         Task<MTProtoResponse<TLMessagesAffectedMessages>> ReadMessageContentsAsync(TLVector<int> id);
         Task<MTProtoResponse<TLUpdatesBase>> JoinChannelAsync(TLChannel channel);
-        Task<MTProtoResponse<TLMessagesBotCallbackAnswer>> GetBotCallbackAnswerAsync(TLInputPeerBase peer, int messageId, byte[] data, int gameId);
+        Task<MTProtoResponse<TLMessagesBotCallbackAnswer>> GetBotCallbackAnswerAsync(TLInputPeerBase peer, int messageId, byte[] data, bool game);
         Task<MTProtoResponse<TLMessagesAffectedMessages>> DeleteMessagesAsync(TLVector<int> id, bool revoke);
         Task<MTProtoResponse<TLHelpTermsOfService>> GetTermsOfServiceAsync(string langCode);
         Task<MTProtoResponse<TLChannelsChannelParticipant>> GetParticipantAsync(TLInputChannelBase inputChannel, TLInputUserBase userId);
         Task<MTProtoResponse<TLMessagesMessagesBase>> GetMessagesAsync(TLInputChannelBase inputChannel, TLVector<int> id);
         Task<MTProtoResponse<TLUpdatesBase>> AddChatUserAsync(int chatId, TLInputUserBase userId, int fwdLimit);
-        Task<MTProtoResponse<TLUpdatesBase>> ForwardMessagesAsync(TLInputPeerBase toPeer, TLVector<int> id, IList<TLMessage> messages, bool withMyScore);
+        Task<MTProtoResponse<TLUpdatesBase>> ForwardMessagesAsync(TLInputPeerBase toPeer, TLInputPeerBase fromPeer, TLVector<int> id, IList<TLMessage> messages, bool withMyScore);
         Task<MTProtoResponse<bool>> ReorderStickerSetsAsync(bool masks, TLVector<long> order);
         Task<MTProtoResponse<TLMessage>> SendInlineBotResultAsync(TLMessage message, Action fastCallback);
         Task<MTProtoResponse<TLUpdatesBase>> GetAllDraftsAsync();
@@ -82,6 +83,7 @@ namespace Telegram.Api.Services
         Task<MTProtoResponse<TLAuthAuthorization>> CheckPasswordAsync(byte[] passwordHash);
         Task<MTProtoResponse<bool>> ResetTopPeerRatingAsync(TLTopPeerCategoryBase category, TLInputPeerBase peer);
         Task<MTProtoResponse<TLMessageMediaBase>> GetWebPagePreviewAsync(string message);
+        Task<MTProtoResponse<TLWebPageBase>> GetWebPageAsync(string url, int hash);
         Task<MTProtoResponse<TLUpdatesBase>> EditChatPhotoAsync(int chatId, TLInputChatPhotoBase photo);
         Task<MTProtoResponse<TLUserBase>> UpdateUsernameAsync(string username);
         Task<MTProtoResponse<TLAuthSentCode>> SendConfirmPhoneCodeAsync(string hash, bool currentNumber);
@@ -145,6 +147,7 @@ namespace Telegram.Api.Services
         Task<MTProtoResponse<bool>> SetInlineBotResultsAsync(bool gallery, bool pr, long queryId, TLVector<TLInputBotInlineResultBase> results, int cacheTime, string nextOffset, TLInlineBotSwitchPM switchPM);
         Task<MTProtoResponse<bool>> ReadFeaturedStickersAsync(TLVector<long> id);
         Task<MTProtoResponse<TLMessagesAllStickersBase>> GetAllStickersAsync(byte[] hash);
+        Task<MTProtoResponse<TLMessagesAllStickersBase>> GetAllStickersAsync(int hash);
         Task<MTProtoResponse<TLVector<TLWallPaperBase>>> GetWallpapersAsync();
         Task<MTProtoResponse<TLContactsResolvedPeer>> ResolveUsernameAsync(string username);
         Task<MTProtoResponse<TLAccountDaysTTL>> GetAccountTTLAsync();
@@ -162,5 +165,7 @@ namespace Telegram.Api.Services
         Task<MTProtoResponse<TLAuthAuthorization>> SignInAsync(string phoneNumber, string phoneCodeHash, string phoneCode);
         Task<MTProtoResponse<TLAuthAuthorization>> RecoverPasswordAsync(string code);
         Task<MTProtoResponse<TLAuthSentCode>> ResendCodeAsync(string phoneNumber, string phoneCodeHash);
+        Task<MTProtoResponse<bool>> ToggleDialogPinAsync(TLInputPeerBase peer, bool pin);
+        Task<MTProtoResponse<bool>> ReorderPinnedDialogsAsync(TLVector<TLInputPeerBase> order, bool force);
     }
 }

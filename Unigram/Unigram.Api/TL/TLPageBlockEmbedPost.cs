@@ -6,7 +6,7 @@ namespace Telegram.Api.TL
 	public partial class TLPageBlockEmbedPost : TLPageBlockBase 
 	{
 		public String Url { get; set; }
-		public Int64 WebpageId { get; set; }
+		public Int64 WebPageId { get; set; }
 		public Int64 AuthorPhotoId { get; set; }
 		public String Author { get; set; }
 		public Int32 Date { get; set; }
@@ -14,36 +14,34 @@ namespace Telegram.Api.TL
 		public TLRichTextBase Caption { get; set; }
 
 		public TLPageBlockEmbedPost() { }
-		public TLPageBlockEmbedPost(TLBinaryReader from, bool cache = false)
+		public TLPageBlockEmbedPost(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.PageBlockEmbedPost; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Url = from.ReadString();
-			WebpageId = from.ReadInt64();
+			WebPageId = from.ReadInt64();
 			AuthorPhotoId = from.ReadInt64();
 			Author = from.ReadString();
 			Date = from.ReadInt32();
-			Blocks = TLFactory.Read<TLVector<TLPageBlockBase>>(from, cache);
-			Caption = TLFactory.Read<TLRichTextBase>(from, cache);
-			if (cache) ReadFromCache(from);
+			Blocks = TLFactory.Read<TLVector<TLPageBlockBase>>(from);
+			Caption = TLFactory.Read<TLRichTextBase>(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x292C7BE9);
 			to.Write(Url);
-			to.Write(WebpageId);
+			to.Write(WebPageId);
 			to.Write(AuthorPhotoId);
 			to.Write(Author);
 			to.Write(Date);
-			to.WriteObject(Blocks, cache);
-			to.WriteObject(Caption, cache);
-			if (cache) WriteToCache(to);
+			to.WriteObject(Blocks);
+			to.WriteObject(Caption);
 		}
 	}
 }

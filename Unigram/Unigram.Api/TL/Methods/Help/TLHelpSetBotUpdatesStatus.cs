@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Help
 {
 	/// <summary>
-	/// RCP method help.setBotUpdatesStatus
+	/// RCP method help.setBotUpdatesStatus.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLHelpSetBotUpdatesStatus : TLObject
 	{
@@ -12,26 +13,24 @@ namespace Telegram.Api.TL.Methods.Help
 		public String Message { get; set; }
 
 		public TLHelpSetBotUpdatesStatus() { }
-		public TLHelpSetBotUpdatesStatus(TLBinaryReader from, bool cache = false)
+		public TLHelpSetBotUpdatesStatus(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.HelpSetBotUpdatesStatus; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			PendingUpdatesCount = from.ReadInt32();
 			Message = from.ReadString();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0xEC22CFCD);
 			to.Write(PendingUpdatesCount);
 			to.Write(Message);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

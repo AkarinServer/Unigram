@@ -11,7 +11,10 @@ namespace Unigram.Converters
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            return BindConvert.Current.Bubble((int?)value);
+            if (value is int?)
+                value = value ?? 0;
+
+            return BindConvert.Current.Bubble((int)value);
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)

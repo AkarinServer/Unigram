@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.setBotCallbackAnswer
+	/// RCP method messages.setBotCallbackAnswer.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLMessagesSetBotCallbackAnswer : TLObject
 	{
@@ -27,24 +28,23 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Int32 CacheTime { get; set; }
 
 		public TLMessagesSetBotCallbackAnswer() { }
-		public TLMessagesSetBotCallbackAnswer(TLBinaryReader from, bool cache = false)
+		public TLMessagesSetBotCallbackAnswer(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSetBotCallbackAnswer; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
 			QueryId = from.ReadInt64();
 			if (HasMessage) Message = from.ReadString();
 			if (HasUrl) Url = from.ReadString();
 			CacheTime = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			UpdateFlags();
 
@@ -54,7 +54,6 @@ namespace Telegram.Api.TL.Methods.Messages
 			if (HasMessage) to.Write(Message);
 			if (HasUrl) to.Write(Url);
 			to.Write(CacheTime);
-			if (cache) WriteToCache(to);
 		}
 
 		private void UpdateFlags()

@@ -77,16 +77,15 @@ namespace Unigram.ViewModels.Login
             var input = CryptographicBuffer.CreateFromByteArray(hash);
             var hasher = HashAlgorithmProvider.OpenAlgorithm(HashAlgorithmNames.Sha256);
             var hashed = hasher.HashData(input);
-            byte[] data;
-            CryptographicBuffer.CopyToByteArray(hashed, out data);
+            CryptographicBuffer.CopyToByteArray(hashed, out byte[] data);
 
             var result = await ProtoService.CheckPasswordAsync(data);
             if (result?.IsSucceeded == true)
             {
                 ProtoService.SetInitState();
-                ProtoService.CurrentUserId = result.Value.User.Id;
+                ProtoService.CurrentUserId = result.Result.User.Id;
                 SettingsHelper.IsAuthorized = true;
-                SettingsHelper.UserId = result.Value.User.Id;
+                SettingsHelper.UserId = result.Result.User.Id;
 
                 // TODO: maybe ask about notifications?
 

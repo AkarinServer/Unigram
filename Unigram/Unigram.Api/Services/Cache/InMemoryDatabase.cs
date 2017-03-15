@@ -159,8 +159,7 @@ namespace Telegram.Api.Services.Cache
         {
             if (message.Id != 0)
             {
-                TLPeerChannel peerChannel;
-                if (TLUtils.IsChannelMessage(message, out peerChannel))
+                if (TLUtils.IsChannelMessage(message, out TLPeerChannel peerChannel))
                 {
                     var channelContext = ChannelsContext[peerChannel.Id];
                     if (channelContext != null)
@@ -196,8 +195,7 @@ namespace Telegram.Api.Services.Cache
         {
             if (message.Id != 0)
             {
-                TLPeerChannel peerChannel;
-                if (TLUtils.IsChannelMessage(message, out peerChannel))
+                if (TLUtils.IsChannelMessage(message, out TLPeerChannel peerChannel))
                 {
                     var channelContext = ChannelsContext[peerChannel.Id];
                     if (channelContext == null)
@@ -240,6 +238,12 @@ namespace Telegram.Api.Services.Cache
         {
             if (user != null)
             {
+                // TODO: remove
+                if (user is TLUser userFull && userFull.Id.Equals(38475861))
+                {
+                    userFull.IsVerified = true;
+                }
+
                 UsersContext[user.Id] = user;
             }
         }
@@ -248,6 +252,12 @@ namespace Telegram.Api.Services.Cache
         {
             if (chat != null)
             {
+                // TODO: remove
+                if (chat is TLChannel channel && (channel.Id.Equals(1060755082) || channel.Id.Equals(1057176757)))
+                {
+                    channel.IsVerified = true;
+                }
+
                 ChatsContext[chat.Id] = chat;
             }
         }
@@ -447,8 +457,7 @@ namespace Telegram.Api.Services.Cache
                     // в бродкастах дата у всех сообщений совпадает: правильный порядок можно определить по индексу сообщения
                     if (Dialogs[i].GetDateIndex() == dateIndex)
                     {
-                        var currentMessageId = Dialogs[i].TopMessage != null ? Dialogs[i].TopMessage : 0;
-
+                        var currentMessageId = Dialogs[i].TopMessage;
                         if (currentMessageId != 0 && messageId != 0)
                         {
                             if (currentMessageId < messageId)
@@ -535,7 +544,7 @@ namespace Telegram.Api.Services.Cache
                     }
                     else
                     {
-                        TLObject with;
+                        ITLDialogWith with;
 
                         TLPeerBase peer;
 
@@ -1839,7 +1848,7 @@ namespace Telegram.Api.Services.Cache
                             var topMessage = dialog.TopMessageItem != null ? dialog.TopMessageItem.Id : new int?();
                             if (topMessage == null)
                             {
-                                dialog.TopMessageRandomId = dialog.TopMessageItem != null ? dialog.TopMessageItem.RandomId : null;
+                                dialog.TopMessageRandomId = dialog.TopMessageItem?.RandomId;
                             }
                             else
                             {

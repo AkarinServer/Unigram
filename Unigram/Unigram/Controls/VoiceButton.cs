@@ -14,7 +14,7 @@ using Windows.UI.Xaml.Input;
 
 namespace Unigram.Controls
 {
-    public class VoiceButton : GlyphButton
+    public class VoiceButton : GlyphHyperlinkButton
     {
         public DialogViewModel ViewModel => DataContext as DialogViewModel;
 
@@ -40,6 +40,9 @@ namespace Unigram.Controls
         protected override void OnPointerReleased(PointerRoutedEventArgs e)
         {
             base.OnPointerReleased(e);
+
+            _isPressed = false;
+
             Stop();
 
             ReleasePointerCapture(e.Pointer);
@@ -72,7 +75,7 @@ namespace Unigram.Controls
                 await _recorder.StopAsync();
             }
 
-            _file = await ApplicationData.Current.TemporaryFolder.CreateFileAsync("recording.ogg", CreationCollisionOption.ReplaceExisting);
+            _file = await ApplicationData.Current.LocalFolder.CreateFileAsync("temp\\recording.ogg", CreationCollisionOption.ReplaceExisting);
             _recorder = new OpusRecorder(_file);
             await _recorder.StartAsync();
 
@@ -92,7 +95,7 @@ namespace Unigram.Controls
             {
                 await _file.DeleteAsync();
             }
-            else
+            else if (_file != null)
             {
                 await ViewModel.SendAudioAsync(_file, (int)(DateTime.Now - _start).TotalSeconds, true, null, null, null);
             }
@@ -154,8 +157,6 @@ namespace Unigram.Controls
                 wavEncodingProfile.Audio.BitsPerSample = 16;
                 wavEncodingProfile.Audio.SampleRate = 48000;
                 wavEncodingProfile.Audio.ChannelCount = 1;
-                //wavEncodingProfile.Audio.Properties[Guid.Parse("{37E48BF5-645E-4C5B-89DE-ADA9E29B696A}")] = 1;
-                //wavEncodingProfile.Container.Properties[Guid.Parse("{37E48BF5-645E-4C5B-89DE-ADA9E29B696A}")] = 1;
                 await m_mediaCapture.StartRecordToCustomSinkAsync(wavEncodingProfile, m_opusSink);
             }
 

@@ -154,9 +154,9 @@ namespace Telegram.Api.TL
                 RandomId = randomId,
                 ReplyToMsgId = replyToMsgId
             };
-            if (m.FromId != 0) m.HasFromId = true;
+            if (m.FromId != null) m.HasFromId = true;
             if (m.Media != null) m.HasMedia = true;
-            if (m.ReplyToMsgId != 0) m.HasReplyToMsgId = true;
+            if (m.ReplyToMsgId != null) m.HasReplyToMsgId = true;
 #else
             var m = new TLMessage
             {
@@ -564,7 +564,7 @@ namespace Telegram.Api.TL
                         {
                             using (var from = new TLBinaryReader(fileStream))
                             {
-                                return TLFactory.Read<T>(from, true);
+                                return TLFactory.Read<T>(from);
                             }
                         }
                     }
@@ -749,7 +749,7 @@ namespace Telegram.Api.TL
                     }
                 }
 
-                var container = obj.Query as TLMessageContainer;
+                var container = obj.Query as TLMsgContainer;
                 if (container != null)
                 {
                     foreach (var message in container.Messages)

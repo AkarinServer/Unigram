@@ -107,6 +107,7 @@
     <None Include="project.json" />
     <Compile Include="Constants.cs" />
     <Compile Include="Constants.Secret.cs" />
+    <Compile Include="Helpers\PhoneNumber.cs" />
     <Compile Include="Services\FileManager\DownloadAudioFileManager.cs" />
     <Compile Include="Services\FileManager\DownloadDocumentFileManager.cs" />
     <Compile Include="Services\FileManager\DownloadableItem.cs" />
@@ -125,11 +126,13 @@
     <Compile Include="Services\IMTProtoService.Async.cs" />
     <Compile Include="Services\MTProtoService.Async.cs" />
     <Compile Include="TLExtensions.cs" />
-    <Compile Include="Hash\CRC32\CRC32.cs" />
+    <Compile Include="Hash\CRC32.cs" />
     <Compile Include="Helpers\SettingsHelper.cs" />
     <Compile Include="Services\MTProtoResponse.cs" />
     <Compile Include="Services\MTProtoService.Channel.cs" />
     <Compile Include="TL\Core\ITLChannelInviter.cs" />
+    <Compile Include="TL\Core\ITLDialogWith.cs" />
+    <Compile Include="TL\Core\ITLInputPeer.cs" />
     <Compile Include="TL\Core\ITLMediaCaption.cs" />
     <Compile Include="TL\Core\ITLMultiChannelPts.cs" />
     <Compile Include="TL\Core\ITLRandomId.cs" />
@@ -137,6 +140,7 @@
     <Compile Include="TL\Core\ITLStickers.cs" />
     <Compile Include="TL\Core\TLActionInfo.cs" />
     <Compile Include="TL\Core\TLInt.cs" />
+    <Compile Include="TL\Core\TLMessageActionUnreadMessages.cs" />
     <Compile Include="TL\Local\TLMessageActionDate.cs" />
     <Compile Include="TL\Local\TLMessagesContainer.cs" />
     <Compile Include="TL\Methods\Account\TLAccountChangePhone.cs" />
@@ -324,6 +328,7 @@
     <Compile Include="TL\Methods\Photos\TLPhotosGetUserPhotos.cs" />
     <Compile Include="TL\Methods\Photos\TLPhotosUpdateProfilePhoto.cs" />
     <Compile Include="TL\Methods\Photos\TLPhotosUploadProfilePhoto.cs" />
+    <Compile Include="TL\Methods\TLDestroyAuthKey.cs" />
     <Compile Include="TL\Methods\TLDestroySession.cs" />
     <Compile Include="TL\Methods\TLGetFutureSalts.cs" />
     <Compile Include="TL\Methods\TLInitConnection.cs" />
@@ -345,11 +350,13 @@
     <Compile Include="TL\Methods\Upload\TLUploadSaveFilePart.cs" />
     <Compile Include="TL\Methods\Users\TLUsersGetFullUser.cs" />
     <Compile Include="TL\Methods\Users\TLUsersGetUsers.cs" />
+    <Compile Include="TL\Partial\TLAuthorization.Partial.cs" />
     <Compile Include="TL\Partial\TLBotInlineResultBase.Partial.cs" />
     <Compile Include="TL\Partial\TLDraftMessageBase.Partial.cs" />
     <Compile Include="TL\Partial\TLInputFileLocationBase.Partial.cs" />
     <Compile Include="TL\Partial\TLInputPeerBase.Partial.cs" />
     <Compile Include="TL\Partial\TLMessageMediaBase.Partial.cs" />
+    <Compile Include="TL\Partial\TLMessageMediaContact.Partial.cs" />
     <Compile Include="TL\Partial\TLMessagesAllStickers.Partial.cs" />
     <Compile Include="TL\Partial\TLMessagesArchivedStickers.Partial.cs" />
     <Compile Include="TL\Partial\TLMessagesFeaturedStickers.Partial.cs" />
@@ -371,6 +378,7 @@
     <Compile Include="TL\Partial\TLFileLocationBase.Partial.cs" />
     <Compile Include="TL\Partial\TLMessagesDialogsBase.Partial.cs" />
     <Compile Include="TL\Partial\TLMessagesMessagesBase.Partial.cs" />
+    <Compile Include="TL\Partial\TLPhoto.Partial.cs" />
     <Compile Include="TL\Partial\TLStickerSet.Partial.cs" />
     <Compile Include="TL\Partial\TLUpdateBase.Partial.cs" />
     <Compile Include="TL\Partial\TLUpdatesBase.Partial.cs" />
@@ -383,13 +391,9 @@
   <ItemGroup>
     <Compile Include="Aggregator\EventAggregator.cs" />
     <Compile Include="Aggregator\ExtensionMethods.cs" />
-    <Compile Include="Extensions\ActionExtensions.cs" />
     <Compile Include="Extensions\HttpWebRequestExtensions.cs" />
     <Compile Include="Extensions\StreamExtensions.cs" />
     <Compile Include="Extensions\TLObjectExtensions.cs" />
-    <Compile Include="Hash\MD5\MD5.cs" />
-    <Compile Include="Hash\MD5\MD5CryptoServiceProvider.cs" />
-    <Compile Include="Hash\MD5\MD5Managed.cs" />
     <Compile Include="Helpers\Execute.cs" />
     <Compile Include="Helpers\FileUtils.cs" />
     <Compile Include="Helpers\RequestHelper.cs" />
@@ -445,7 +449,7 @@
     <Compile Include="TL\Core\TLInt128.cs" />
     <Compile Include="TL\Core\TLInt256.cs" />
     <Compile Include="TL\Core\TLLong.cs" />
-    <Compile Include="TL\Core\TLMessageContainer.cs" />
+    <Compile Include="TL\Core\TLMsgContainer.cs" />
     <Compile Include="TL\Core\TLMessageState.cs" />
     <Compile Include="TL\Core\TLNonEncryptedTransportMessage.cs" />
     <Compile Include="TL\Core\TLObject.cs" />
@@ -570,6 +574,10 @@
     <Compile Include="TL\TLContactsTopPeersBase.cs" />
     <Compile Include="TL\TLContactsTopPeersNotModified.cs" />
     <Compile Include="TL\TLDCOption.cs" />
+    <Compile Include="TL\TLDestroyAuthKeyFail.cs" />
+    <Compile Include="TL\TLDestroyAuthKeyNone.cs" />
+    <Compile Include="TL\TLDestroyAuthKeyOk.cs" />
+    <Compile Include="TL\TLDestroyAuthKeyResBase.cs" />
     <Compile Include="TL\TLDestroySessionNone.cs" />
     <Compile Include="TL\TLDestroySessionOk.cs" />
     <Compile Include="TL\TLDestroySessionResBase.cs" />

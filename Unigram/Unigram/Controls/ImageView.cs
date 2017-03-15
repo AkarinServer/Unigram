@@ -11,7 +11,7 @@ using Telegram.Api.TL;
 
 namespace Unigram.Controls
 {
-    public class ImageView : Control
+    public class ImageView : HyperlinkButton
     {
         private Image Holder;
 
@@ -63,9 +63,14 @@ namespace Unigram.Controls
 
         private static void OnConstraintChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
+            ((ImageView)d).OnConstraintChanged(e.NewValue, e.OldValue);
             ((ImageView)d).InvalidateMeasure();
         }
 
+        protected virtual void OnConstraintChanged(object newValue, object oldValue)
+        {
+
+        }
         #endregion
 
         protected override Size MeasureOverride(Size availableSize)
@@ -80,6 +85,14 @@ namespace Unigram.Controls
 
             var width = 0.0;
             var height = 0.0;
+
+            if (Constraint is TLMessageMediaGeo || Constraint is TLMessageMediaVenue)
+            {
+                width = 320;
+                height = 240;
+
+                goto Calculate;
+            }
 
             var photo = Constraint as TLPhoto;
             if (photo != null)
@@ -115,6 +128,15 @@ namespace Unigram.Controls
 
                     goto Calculate;
                 }
+            }
+
+            var inlineResult = Constraint as TLBotInlineResult;
+            if (inlineResult != null)
+            {
+                width = inlineResult.HasW ? inlineResult.W.Value : 0;
+                height = inlineResult.HasH ? inlineResult.H.Value : 0;
+
+                goto Calculate;
             }
 
             Calculate:

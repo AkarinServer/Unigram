@@ -27,7 +27,7 @@ namespace Unigram.Views.Login
         {
             InitializeComponent();
 
-            DataContext = UnigramContainer.Instance.ResolverType<LoginPhoneNumberViewModel>();
+            DataContext = UnigramContainer.Current.ResolveType<LoginPhoneNumberViewModel>();
 
             // Used to hide the app gray bar on desktop.
             // Currently this is always hidden on both family devices.
@@ -54,9 +54,8 @@ namespace Unigram.Views.Login
 
         private void PhoneNumber_KeyDown(object sender, KeyRoutedEventArgs e)
         {
-            if (e.Key == Windows.System.VirtualKey.Enter && txtMasterPhoneInputPhoneNumber.Text != null)
+            if (e.Key == Windows.System.VirtualKey.Enter)
             {
-                ViewModel.PhoneNumber = txtMasterPhoneInputPhoneNumber.Text;
                 ViewModel.SendCommand.Execute(sender);
                 e.Handled = true;
             }

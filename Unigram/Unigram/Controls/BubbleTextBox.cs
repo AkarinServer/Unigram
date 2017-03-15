@@ -2,19 +2,26 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Telegram.Api.Aggregator;
 using Telegram.Api.Helpers;
 using Telegram.Api.Services.Cache;
 using Telegram.Api.TL;
 using Unigram.Common;
+using Unigram.Core.Dependency;
+using Unigram.Core.Models;
 using Unigram.Core.Rtf;
+using Unigram.Core.Rtf.Write;
 using Unigram.ViewModels;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
+using Windows.Storage;
+using Windows.Storage.Streams;
 using Windows.System;
 using Windows.UI;
 using Windows.UI.Core;
@@ -24,14 +31,14 @@ using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Data;
 using Windows.UI.Xaml.Input;
 using Windows.UI.Xaml.Media;
+using Unigram.Core;
 
 namespace Unigram.Controls
 {
-    public class BubbleTextBox : RichEditBox
+    public class BubbleTextBox : RichEditBox, IHandle<TLUpdateDraftMessage>, IHandle<EditMessageEventArgs>, IHandle
     {
         private ContentControl InlinePlaceholderTextContentPresenter;
 
-        // TODO: TEMP!!!
         public DialogViewModel ViewModel => DataContext as DialogViewModel;
 
         private MenuFlyout _flyout;
@@ -65,10 +72,9 @@ namespace Unigram.Controls
             ((MenuFlyoutItem)_flyout.Items[2]).Click += Hyperlink_Click;
 #endif
 
-#if !DEBUG
-            // We need the ability to paste RTF content for debug pourposes
             Paste += OnPaste;
-#endif
+            Clipboard.ContentChanged += Clipboard_ContentChanged;
+
             SelectionChanged += OnSelectionChanged;
             TextChanged += OnTextChanged;
 
@@ -81,6 +87,19 @@ namespace Unigram.Controls
                 .Subscribe(e => Execute.BeginOnUIThread(() => UpdateInlineBot(true)));
 
             Window.Current.CoreWindow.Dispatcher.AcceleratorKeyActivated += Dispatcher_AcceleratorKeyActivated;
+
+            Loaded += OnLoaded;
+            Unloaded += OnUnloaded;
+        }
+
+        private void OnLoaded(object sender, RoutedEventArgs e)
+        {
+            UnigramContainer.Current.ResolveType<ITelegramEventAggregator>().Subscribe(this);
+        }
+
+        private void OnUnloaded(object sender, RoutedEventArgs e)
+        {
+            UnigramContainer.Current.ResolveType<ITelegramEventAggregator>().Unsubscribe(this);
         }
 
         protected override void OnApplyTemplate()
@@ -174,6 +193,59 @@ namespace Unigram.Controls
 
                 Document.Selection.SetText(TextSetOptions.None, result);
             }
+            else if (package.Contains(StandardDataFormats.StorageItems))
+            {
+                e.Handled = true;
+            }
+            else if (package.Contains(StandardDataFormats.Bitmap))
+            {
+                e.Handled = true;
+
+                var bitmap = await package.GetBitmapAsync();
+                var cache = await ApplicationData.Current.LocalFolder.CreateFileAsync("temp\\paste.jpg", CreationCollisionOption.ReplaceExisting);
+
+                using (var stream = await bitmap.OpenReadAsync())
+                using (var reader = new DataReader(stream))
+                {
+                    await reader.LoadAsync((uint)stream.Size);
+                    var buffer = new byte[(int)stream.Size];
+                    reader.ReadBytes(buffer);
+                    await FileIO.WriteBytesAsync(cache, buffer);
+                }
+
+                ViewModel.SendPhotoCommand.Execute(new StoragePhoto(cache));
+            }
+            else if (package.Contains(StandardDataFormats.Text) && package.Contains("application/x-tl-field-tags"))
+            {
+                // This is our field format
+            }
+            else if (package.Contains(StandardDataFormats.Text) && package.Contains("application/x-td-field-tags"))
+            {
+                // This is Telegram Desktop mentions format
+            }
+        }
+
+        private void Clipboard_ContentChanged(object sender, object e)
+        {
+            if (FocusState != FocusState.Unfocused)
+            {
+                bool isDirty = _isDirty;
+
+                if (isDirty)
+                {
+                    Document.GetText(TextGetOptions.FormatRtf, out string text);
+                    Document.GetText(TextGetOptions.NoHidden, out string planText);
+
+                    var parser = new RtfToTLParser();
+                    var reader = new RtfReader(parser);
+                    reader.LoadRtfText(text);
+                    reader.Parse();
+
+                    MessageHelper.CopyToClipboard(planText, parser.Entities);
+                }
+
+                Clipboard.ContentChanged -= Clipboard_ContentChanged;
+            }
         }
 
         private void OnSelectionChanged(object sender, RoutedEventArgs e)
@@ -185,9 +257,7 @@ namespace Unigram.Controls
         {
             if (Document.Selection.Length != 0)
             {
-                int hit;
-                Rect rect;
-                Document.Selection.GetRect(PointOptions.ClientCoordinates, out rect, out hit);
+                Document.Selection.GetRect(PointOptions.ClientCoordinates, out Rect rect, out int hit);
                 _flyout.ShowAt(this, new Point(rect.X + 12, rect.Y - _presenter?.ActualHeight ?? 0));
             }
             else
@@ -222,9 +292,10 @@ namespace Unigram.Controls
                 // Check if CTRL or Shift is also pressed in addition to Enter key.
                 var ctrl = Window.Current.CoreWindow.GetKeyState(VirtualKey.Control);
                 var shift = Window.Current.CoreWindow.GetKeyState(VirtualKey.Shift);
+                var key = Window.Current.CoreWindow.GetKeyState(args.VirtualKey);
 
                 // If there is text and CTRL/Shift is not pressed, send message. Else allow new row.
-                if (!ctrl.HasFlag(CoreVirtualKeyStates.Down) && !shift.HasFlag(CoreVirtualKeyStates.Down) && !IsEmpty)
+                if (key.HasFlag(CoreVirtualKeyStates.Down) && !ctrl.HasFlag(CoreVirtualKeyStates.Down) && !shift.HasFlag(CoreVirtualKeyStates.Down))
                 {
                     AcceptsReturn = false;
                     await SendAsync();
@@ -242,8 +313,7 @@ namespace Unigram.Controls
             {
                 FormatText();
 
-                string text;
-                Document.GetText(TextGetOptions.NoHidden, out text);
+                Document.GetText(TextGetOptions.NoHidden, out string text);
 
                 if (MessageHelper.IsValidUsername(text))
                 {
@@ -300,8 +370,9 @@ namespace Unigram.Controls
 
         private void UpdateInlineBot(bool fast)
         {
+            var text = Text;
             var command = string.Empty;
-            var inline = SearchInlineBotResults(Text, out command);
+            var inline = SearchInlineBotResults(text, out command);
             if (inline && fast)
             {
                 ViewModel.GetInlineBotResults(command);
@@ -311,13 +382,29 @@ namespace Unigram.Controls
                 ViewModel.CurrentInlineBot = null;
                 ViewModel.InlineBotResults = null;
                 InlinePlaceholderText = string.Empty;
+
+                if (fast)
+                {
+                    // TODO: verify if it is actually a sticker
+                    if (text.Length < 14 && !string.IsNullOrWhiteSpace(text))
+                    {
+                        ViewModel.StickerPack = DatabaseContext.Current.SelectStickerPack(text.Trim());
+                    }
+                    else
+                    {
+                        ViewModel.StickerPack = null;
+                    }
+                }
+                else
+                {
+                    ViewModel.StickerPack = null;
+                }
             }
         }
 
         private void UpdateText()
         {
-            string text;
-            Document.GetText(TextGetOptions.NoHidden, out text);
+            Document.GetText(TextGetOptions.NoHidden, out string text);
 
             _updatingText = true;
             Text = text;
@@ -326,8 +413,7 @@ namespace Unigram.Controls
 
         private void FormatText()
         {
-            string text;
-            Document.GetText(TextGetOptions.NoHidden, out text);
+            Document.GetText(TextGetOptions.NoHidden, out string text);
 
             var caretPosition = Document.Selection.StartPosition;
             var result = Emoticon.Pattern.Matches(text);
@@ -360,13 +446,11 @@ namespace Unigram.Controls
 
             bool isDirty = _isDirty;
 
-            string text;
-            string planText;
-            Document.GetText(TextGetOptions.FormatRtf, out text);
-            Document.GetText(TextGetOptions.NoHidden, out planText);
+            Document.GetText(TextGetOptions.FormatRtf, out string text);
+            Document.GetText(TextGetOptions.NoHidden, out string planText);
 
             //Document.SetText(TextSetOptions.FormatRtf, string.Empty);
-            Document.SetText(TextSetOptions.FormatRtf, @"{\rtf1\fbidis\ansi\ansicpg1252\deff0\nouicompat\deflang1040{\fonttbl{\f0\fnil Segoe UI;}}{\colortbl ;\red0\green0\blue0;}{\*\generator Riched20 10.0.14393}\viewkind4\uc1\pard\ltrpar\tx720\cf1\f0\fs23\lang1033}");
+            Document.SetText(TextSetOptions.FormatRtf, @"{\rtf1\fbidis\ansi\ansicpg1252\deff0\nouicompat\deflang1040{\fonttbl{\f0\fnil Segoe UI;}}{\*\generator Riched20 10.0.14393}\viewkind4\uc1\pard\ltrpar\tx720\cf1\f0\fs23\lang1033}");
 
             _updatingText = true;
             planText = planText.Trim();
@@ -394,8 +478,7 @@ namespace Unigram.Controls
             {
                 // TODO: a better implementation?
 
-                string text;
-                Document.GetText(TextGetOptions.None, out text);
+                Document.GetText(TextGetOptions.None, out string text);
 
                 var isEmpty = string.IsNullOrWhiteSpace(text);
                 if (isEmpty)
@@ -540,9 +623,7 @@ namespace Unigram.Controls
                 }
 
                 var range = Document.GetRange(Text.Length, Text.Length);
-                int hit;
-                Rect rect;
-                range.GetRect(PointOptions.ClientCoordinates, out rect, out hit);
+                range.GetRect(PointOptions.ClientCoordinates, out Rect rect, out int hit);
 
                 var translateTransform = new TranslateTransform();
                 translateTransform.X = rect.X;
@@ -596,7 +677,7 @@ namespace Unigram.Controls
 
             if (string.IsNullOrEmpty(newValue))
             {
-                Document.SetText(TextSetOptions.FormatRtf, @"{\rtf1\fbidis\ansi\ansicpg1252\deff0\nouicompat\deflang1040{\fonttbl{\f0\fnil Segoe UI;}}{\colortbl ;\red0\green0\blue0;}{\*\generator Riched20 10.0.14393}\viewkind4\uc1\pard\ltrpar\tx720\cf1\f0\fs23\lang1033}");
+                Document.SetText(TextSetOptions.FormatRtf, @"{\rtf1\fbidis\ansi\ansicpg1252\deff0\nouicompat\deflang1040{\fonttbl{\f0\fnil Segoe UI;}}{\*\generator Riched20 10.0.14393}\viewkind4\uc1\pard\ltrpar\tx720\cf1\f0\fs23\lang1033}");
             }
             else
             {
@@ -605,6 +686,214 @@ namespace Unigram.Controls
         }
 
         #endregion
+
+        #region Reply
+
+        public TLMessageBase Reply
+        {
+            get { return (TLMessageBase)GetValue(ReplyProperty); }
+            set { SetValue(ReplyProperty, value); }
+        }
+
+        // Using a DependencyProperty as the backing store for Reply.  This enables animation, styling, binding, etc...
+        public static readonly DependencyProperty ReplyProperty =
+            DependencyProperty.Register("Reply", typeof(TLMessageBase), typeof(BubbleTextBox), new PropertyMetadata(null, OnReplyChanged));
+
+        private static void OnReplyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        {
+            ((BubbleTextBox)d).OnReplyChanged((TLMessageBase)e.NewValue, (TLMessageBase)e.OldValue);
+        }
+
+        private async void OnReplyChanged(TLMessageBase newValue, TLMessageBase oldValue)
+        {
+            if (newValue != null)
+            {
+                await Task.Delay(200);
+                Focus(FocusState.Keyboard);
+            }
+        }
+
+        #endregion
+
+        private void OnMessageChanged(string text, TLVector<TLMessageEntityBase> entities)
+        {
+            if (entities != null && entities.Count > 0)
+            {
+                var document = new RtfDocument(PaperSize.A4, PaperOrientation.Portrait, Lcid.English);
+                var segoe = document.CreateFont("Segoe UI");
+                var consolas = document.CreateFont("Consolas");
+                document.SetDefaultFont("Segoe UI");
+
+                var paragraph = document.AddParagraph();
+                var previous = 0;
+
+                foreach (var entity in entities)
+                {
+                    if (entity.Offset > previous)
+                    {
+                        paragraph.Text.Append(text.Substring(previous, entity.Offset - previous));
+                    }
+
+                    var type = entity.TypeId;
+                    if (type == TLType.MessageEntityBold)
+                    {
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Bold);
+                    }
+                    else if (type == TLType.MessageEntityItalic)
+                    {
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).FontStyle.addStyle(FontStyleFlag.Italic);
+                    }
+                    else if (type == TLType.MessageEntityCode)
+                    {
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
+                    }
+                    else if (type == TLType.MessageEntityPre)
+                    {
+                        // TODO any additional
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).Font = consolas;
+                    }
+                    else if (type == TLType.MessageEntityUrl ||
+                                type == TLType.MessageEntityEmail ||
+                                type == TLType.MessageEntityMention ||
+                                type == TLType.MessageEntityHashtag ||
+                                type == TLType.MessageEntityBotCommand)
+                    {
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                    }
+                    else if (type == TLType.MessageEntityTextUrl ||
+                                type == TLType.MessageEntityMentionName ||
+                                type == TLType.InputMessageEntityMentionName)
+                    {
+                        object data;
+                        if (type == TLType.MessageEntityTextUrl)
+                        {
+                            data = ((TLMessageEntityTextUrl)entity).Url;
+                        }
+                        else if (type == TLType.MessageEntityMentionName)
+                        {
+                            data = ((TLMessageEntityMentionName)entity).UserId;
+                        }
+                        else // if(type == TLType.InputMessageEntityMentionName)
+                        {
+                            data = ((TLInputMessageEntityMentionName)entity).UserId;
+                        }
+
+                        //var hyper = new Hyperlink();
+                        //hyper.Click += (s, args) => Hyperlink_Navigate(type, data);
+                        //hyper.Inlines.Add(new Run { Text = text.Substring(entity.Offset, entity.Length) });
+                        //hyper.Foreground = foreground;
+                        //paragraph.Inlines.Add(hyper);
+
+                        paragraph.Text.Append(text.Substring(entity.Offset, entity.Length));
+                        paragraph.addCharFormat(entity.Offset, entity.Offset + entity.Length - 1).LocalHyperlink = data.ToString();
+                    }
+
+                    previous = entity.Offset + entity.Length;
+                }
+
+                if (text.Length > previous)
+                {
+                    paragraph.Text.Append(text.Substring(previous));
+                }
+
+                _isDirty = true;
+                Document.SetText(TextSetOptions.FormatRtf, document.Render());
+                Document.Selection.SetRange(text.Length, text.Length);
+            }
+            else
+            {
+                Document.SetText(TextSetOptions.None, text);
+                Document.Selection.SetRange(text.Length, text.Length);
+            }
+        }
+
+        public void Handle(EditMessageEventArgs args)
+        {
+            Execute.BeginOnUIThread(() =>
+            {
+                var message = args.Message;
+                var flag = false;
+
+                var userBase = ViewModel.With as TLUserBase;
+                var chatBase = ViewModel.With as TLChatBase;
+                if (userBase != null && message.ToId is TLPeerUser && !message.IsOut && userBase.Id == message.FromId.Value)
+                {
+                    flag = true;
+                }
+                else if (userBase != null && message.ToId is TLPeerUser && message.IsOut && userBase.Id == message.ToId.Id)
+                {
+                    flag = true;
+                }
+                else if (chatBase != null && message.ToId is TLPeerChat && chatBase.Id == message.ToId.Id)
+                {
+                    flag = true;
+                }
+                else if (chatBase != null && message.ToId is TLPeerChannel && chatBase.Id == message.ToId.Id)
+                {
+                    flag = true;
+                }
+
+                if (flag)
+                {
+                    OnMessageChanged(args.Text, message.Entities);
+                }
+            });
+        }
+
+        public void Handle(TLUpdateDraftMessage args)
+        {
+            Execute.BeginOnUIThread(() =>
+            {
+                var flag = false;
+
+                var userBase = ViewModel.With as TLUserBase;
+                var chatBase = ViewModel.With as TLChatBase;
+                if (userBase != null && args.Peer is TLPeerUser && userBase.Id == args.Peer.Id)
+                {
+                    flag = true;
+                }
+                else if (chatBase != null && args.Peer is TLPeerChat && chatBase.Id == args.Peer.Id)
+                {
+                    flag = true;
+                }
+                else if (chatBase != null && args.Peer is TLPeerChannel && chatBase.Id == args.Peer.Id)
+                {
+                    flag = true;
+                }
+
+                if (flag)
+                {
+                    var draft = args.Draft as TLDraftMessage;
+                    if (draft != null)
+                    {
+                        OnMessageChanged(draft.Message, draft.Entities);
+                    }
+
+                    var emptyDraft = args.Draft as TLDraftMessageEmpty;
+                    if (emptyDraft != null)
+                    {
+                        Document.SetText(TextSetOptions.FormatRtf, @"{\rtf1\fbidis\ansi\ansicpg1252\deff0\nouicompat\deflang1040{\fonttbl{\f0\fnil Segoe UI;}}{\*\generator Riched20 10.0.14393}\viewkind4\uc1\pard\ltrpar\tx720\cf1\f0\fs23\lang1033}");
+                    }
+                }
+            });
+        }
+    }
+
+    public class EditMessageEventArgs : EventArgs
+    {
+        public TLMessage Message { get; private set; }
+
+        public string Text { get; private set; }
+
+        public EditMessageEventArgs(TLMessage message, string text)
+        {
+            Message = message;
+            Text = text;
+        }
     }
 
     public class RtfToTLParser : RtfSarParser

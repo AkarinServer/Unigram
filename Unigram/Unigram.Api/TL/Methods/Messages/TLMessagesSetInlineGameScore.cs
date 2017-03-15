@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Messages
 {
 	/// <summary>
-	/// RCP method messages.setInlineGameScore
+	/// RCP method messages.setInlineGameScore.
+	/// Returns <see cref="Telegram.Api.TL.TLBoolBase"/>
 	/// </summary>
 	public partial class TLMessagesSetInlineGameScore : TLObject
 	{
@@ -24,30 +25,28 @@ namespace Telegram.Api.TL.Methods.Messages
 		public Int32 Score { get; set; }
 
 		public TLMessagesSetInlineGameScore() { }
-		public TLMessagesSetInlineGameScore(TLBinaryReader from, bool cache = false)
+		public TLMessagesSetInlineGameScore(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.MessagesSetInlineGameScore; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Id = TLFactory.Read<TLInputBotInlineMessageID>(from, cache);
-			UserId = TLFactory.Read<TLInputUserBase>(from, cache);
+			Id = TLFactory.Read<TLInputBotInlineMessageID>(from);
+			UserId = TLFactory.Read<TLInputUserBase>(from);
 			Score = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x15AD9F64);
 			to.Write((Int32)Flags);
-			to.WriteObject(Id, cache);
-			to.WriteObject(UserId, cache);
+			to.WriteObject(Id);
+			to.WriteObject(UserId);
 			to.Write(Score);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

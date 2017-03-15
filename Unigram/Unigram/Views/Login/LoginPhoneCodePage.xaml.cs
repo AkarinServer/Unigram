@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using Telegram.Api.TL;
 using Unigram.Core.Dependency;
 using Unigram.ViewModels.Login;
 using Windows.Foundation;
@@ -28,7 +29,7 @@ namespace Unigram.Views.Login
         {
             InitializeComponent();
 
-            DataContext = UnigramContainer.Instance.ResolverType<LoginPhoneCodeViewModel>();
+            DataContext = UnigramContainer.Current.ResolveType<LoginPhoneCodeViewModel>();
 
             // Used to hide the app gray bar on desktop.
             // Currently this is always hidden on both family devices.
@@ -39,28 +40,10 @@ namespace Unigram.Views.Login
             //}
         }
 
-        private void btnMasterCodeInputConfirm_Click(object sender, RoutedEventArgs e)
-        {
-            btnMasterCodeInputConfirm.IsEnabled = false;
-            txtMasterCodeInputInput.IsEnabled = false;
-            pbarLoading.Visibility = Visibility.Visible;
-        }
-
-        private void txtMasterCodeInputInput_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            if (txtMasterCodeInputInput.Text.Length == 5)
-            {
-                btnMasterCodeInputConfirm.IsEnabled = false;
-                txtMasterCodeInputInput.IsEnabled = false;
-                pbarLoading.Visibility = Visibility.Visible;
-            }
-        }
-
         public class NavigationParameters
         {
             public string PhoneNumber { get; set; }
-
-            public string PhoneCodeHash { get; set; }
+            public TLAuthSentCode Result { get; set; }
         }
     }
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -13,9 +14,15 @@ using Telegram.Api.Services;
 using Telegram.Api.Services.Cache;
 using Telegram.Api.TL;
 using Template10.Common;
+using Unigram.Controls;
+using Unigram.Converters;
 using Unigram.Core.Dependency;
+using Unigram.ViewModels;
 using Unigram.Views;
+using Unigram.Views.Users;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.ApplicationModel.Email;
+using Windows.Storage.Streams;
 using Windows.System;
 using Windows.UI;
 using Windows.UI.Popups;
@@ -32,12 +39,12 @@ namespace Unigram.Common
     {
         #region Message
 
-        public static TLMessageBase GetMessage(DependencyObject obj)
+        public static TLMessage GetMessage(DependencyObject obj)
         {
-            return (TLMessageBase)obj.GetValue(MessageProperty);
+            return (TLMessage)obj.GetValue(MessageProperty);
         }
 
-        public static void SetMessage(DependencyObject obj, TLMessageBase value)
+        public static void SetMessage(DependencyObject obj, TLMessage value)
         {
             // TODO: shitty hack!!!
             var oldValue = obj.GetValue(MessageProperty);
@@ -50,17 +57,17 @@ namespace Unigram.Common
         }
 
         public static readonly DependencyProperty MessageProperty =
-            DependencyProperty.RegisterAttached("Message", typeof(TLMessageBase), typeof(MessageHelper), new PropertyMetadata(null, OnMessageChanged));
+            DependencyProperty.RegisterAttached("Message", typeof(TLMessage), typeof(MessageHelper), new PropertyMetadata(null, OnMessageChanged));
 
         private static void OnMessageChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             var sender = d as RichTextBlock;
-            var newValue = e.NewValue as TLMessageBase;
+            var newValue = e.NewValue as TLMessage;
 
             OnMessageChanged(sender, newValue);
         }
 
-        private static void OnMessageChanged(RichTextBlock sender, TLMessageBase newValue)
+        private static void OnMessageChanged(RichTextBlock sender, TLMessage newValue)
         {
             sender.IsTextSelectionEnabled = false;
 
@@ -79,6 +86,12 @@ namespace Unigram.Common
                     game = sender.Tag != null;
                 }
 
+                var empty = false;
+                if (message.Media is TLMessageMediaWebPage)
+                {
+                    empty = ((TLMessageMediaWebPage)message.Media).WebPage is TLWebPageEmpty;
+                }
+
                 sender.Visibility = (message.Media == null || message.Media is TLMessageMediaEmpty || message.Media is TLMessageMediaWebPage || game || caption ? Visibility.Visible : Visibility.Collapsed);
                 if (sender.Visibility == Visibility.Collapsed)
                 {
@@ -86,7 +99,7 @@ namespace Unigram.Common
                     return;
                 }
 
-                var foreground = Application.Current.Resources["MessageHyperlinkForegroundBrush"] as SolidColorBrush;
+                var foreground = sender.Resources["MessageHyperlinkForegroundBrush"] as SolidColorBrush;
 
                 var paragraph = new Paragraph();
 
@@ -115,7 +128,7 @@ namespace Unigram.Common
                         }
                     }
                     else if (caption)
-                    { 
+                    {
                         var captionMedia = message.Media as ITLMediaCaption;
                         if (captionMedia != null && !string.IsNullOrWhiteSpace(captionMedia.Caption))
                         {
@@ -134,18 +147,15 @@ namespace Unigram.Common
                     //ReplaceAll(message, text, paragraph, sender.Foreground, true);
                 }
 
-                if (message?.Media is TLMessageMediaEmpty || message?.Media is ITLMediaCaption || message?.Media == null)
+                if (message?.Media is TLMessageMediaEmpty || message?.Media is ITLMediaCaption || empty || message?.Media == null)
                 {
-                    var cultureInfo = (CultureInfo)CultureInfo.CurrentUICulture.Clone();
-                    var shortTimePattern = Utils.GetShortTimePattern(ref cultureInfo);
-                    var date = new DateTime(2015, 09, 05, 12, 59, 59, DateTimeKind.Local).ToString(shortTimePattern, cultureInfo);
-
                     if (IsAnyCharacterRightToLeft(message.Message))
                     {
                         paragraph.Inlines.Add(new LineBreak());
                     }
                     else
                     {
+                        var date = BindConvert.Current.Date(message.Date);
                         var placeholder = message.IsOut ? $"  {date}  " : $"  {date}";
                         if (message.HasEditDate)
                         {
@@ -161,8 +171,12 @@ namespace Unigram.Common
                             }
                         }
 
-                        paragraph.Inlines.Add(new Run { Text = placeholder, Foreground = null });
+                        paragraph.Inlines.Add(new Run { Text = "\u200E" + placeholder, Foreground = null });
                     }
+                }
+                else
+                {
+                    paragraph.Inlines.Add(new Run { Text = " " });
                 }
 
                 sender.Blocks.Clear();
@@ -210,59 +224,14 @@ namespace Unigram.Common
         }
         #endregion
 
-        #region Caption
-        public static string GetCaption(DependencyObject obj)
-        {
-            return (string)obj.GetValue(CaptionProperty);
-        }
-
-        public static void SetCaption(DependencyObject obj, string value)
-        {
-            obj.SetValue(CaptionProperty, value);
-        }
-
-        public static readonly DependencyProperty CaptionProperty =
-            DependencyProperty.RegisterAttached("Caption", typeof(string), typeof(MessageHelper), new PropertyMetadata(null, OnCaptionChanged));
-
-        private static void OnCaptionChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            var sender = d as RichTextBlock;
-            var newValue = e.NewValue as string;
-            var oldValue = e.OldValue as string;
-
-            sender.IsTextSelectionEnabled = false;
-            sender.Visibility = string.IsNullOrWhiteSpace(newValue) ? Visibility.Collapsed : Visibility.Visible;
-
-            if (oldValue == newValue) return;
-            if (newValue != null)
-            {
-                var foreground = new SolidColorBrush(Color.FromArgb(0xFF, 0x0f, 0x7d, 0xc7));
-                var paragraph = new Paragraph();
-                ReplaceAll(null, newValue, paragraph, sender.Foreground, true);
-
-                var cultureInfo = (CultureInfo)CultureInfo.CurrentUICulture.Clone();
-                var shortTimePattern = Utils.GetShortTimePattern(ref cultureInfo);
-                var date = new DateTime(2015, 09, 05, 12, 59, 59, DateTimeKind.Local).ToString(shortTimePattern, cultureInfo);
-
-                if (IsAnyCharacterRightToLeft(newValue))
-                {
-                    paragraph.Inlines.Add(new LineBreak());
-                }
-                else
-                {
-                    //paragraph.Inlines.Add(new Run { Text = "\t" + new string('\u00a0', date.Length + (message.IsOut ? 12 : 8)) });
-                    paragraph.Inlines.Add(new Run { Text = $"  {date}  ", Foreground = null });
-                }
-
-                sender.Blocks.Clear();
-                sender.Blocks.Add(paragraph);
-            }
-        }
-        #endregion
-
         private static bool IsAnyCharacterRightToLeft(string s)
         {
-            for (var i = 0; i < s.Length; i += char.IsSurrogatePair(s, i) ? 2 : 1)
+            //if (s.Length > 2)
+            //{
+            //    s = s.Substring(s.Length - 2);
+            //}
+
+            for (int i = 0; i < s.Length; i += char.IsSurrogatePair(s, i) ? 2 : 1)
             {
                 var codepoint = char.ConvertToUtf32(s, i);
                 if (IsRandALCat(codepoint))
@@ -378,6 +347,7 @@ namespace Unigram.Common
         {
             var text = message.Message;
             var previous = 0;
+
             foreach (var entity in message.Entities)
             {
                 if (entity.Offset > previous)
@@ -412,7 +382,7 @@ namespace Unigram.Common
                     object data = text.Substring(entity.Offset, entity.Length);
 
                     var hyper = new Hyperlink();
-                    hyper.Click += (s, args) => Hyperlink_Navigate(type, data);
+                    hyper.Click += (s, args) => Hyperlink_Navigate(type, data, message);
                     hyper.Inlines.Add(new Run { Text = (string)data });
                     hyper.Foreground = foreground;
                     paragraph.Inlines.Add(hyper);
@@ -436,7 +406,7 @@ namespace Unigram.Common
                     }
 
                     var hyper = new Hyperlink();
-                    hyper.Click += (s, args) => Hyperlink_Navigate(type, data);
+                    hyper.Click += (s, args) => Hyperlink_Navigate(type, data, message);
                     hyper.Inlines.Add(new Run { Text = text.Substring(entity.Offset, entity.Length) });
                     hyper.Foreground = foreground;
                     paragraph.Inlines.Add(hyper);
@@ -467,8 +437,7 @@ namespace Unigram.Common
                 var lastIndex = 0;
                 foreach (Match match in matches)
                 {
-                    var index = 0;
-                    var isCommand = IsValidCommand(match.Value, out index);
+                    var isCommand = IsValidCommand(match.Value, out int index);
 
                     if ((match.Index + index) - lastIndex > 0)
                     {
@@ -490,7 +459,7 @@ namespace Unigram.Common
                         }
 
                         var hyperlink = new Hyperlink();
-                        hyperlink.Click += (s, args) => Hyperlink_Legacy(match.Value.Substring(index));
+                        hyperlink.Click += (s, args) => Hyperlink_Legacy(match.Value.Substring(index), message as TLMessage);
                         hyperlink.UnderlineStyle = UnderlineStyle.Single;
                         hyperlink.Foreground = foreground;
                         hyperlink.Inlines.Add(new Run { Text = label });
@@ -540,7 +509,7 @@ namespace Unigram.Common
         //{
         //    WeakReference<BitmapImage> reference;
         //    BitmapImage bitmap;
-            
+
         //    if (_cachedEmoji.TryGetValue(emoji, out reference) && reference.TryGetTarget(out bitmap))
         //    {
         //        var uiContainer = new InlineUIContainer();
@@ -560,7 +529,7 @@ namespace Unigram.Common
         //    }
         //}
 
-        private static void Hyperlink_Legacy(string navstr)
+        private static void Hyperlink_Legacy(string navstr, TLMessage message)
         {
             if (string.IsNullOrEmpty(navstr))
             {
@@ -569,27 +538,27 @@ namespace Unigram.Common
 
             if (navstr.StartsWith("@"))
             {
-                Hyperlink_Navigate(TLType.MessageEntityMention, navstr);
+                Hyperlink_Navigate(TLType.MessageEntityMention, navstr, message);
             }
             else if (navstr.StartsWith("#"))
             {
-                Hyperlink_Navigate(TLType.MessageEntityHashtag, navstr);
+                Hyperlink_Navigate(TLType.MessageEntityHashtag, navstr, message);
             }
             else if (navstr.StartsWith("/"))
             {
-                Hyperlink_Navigate(TLType.MessageEntityBotCommand, navstr);
+                Hyperlink_Navigate(TLType.MessageEntityBotCommand, navstr, message);
             }
             else if (!navstr.Contains("@"))
             {
-                Hyperlink_Navigate(TLType.MessageEntityUrl, navstr);
+                Hyperlink_Navigate(TLType.MessageEntityUrl, navstr, message);
             }
             else
             {
-                Hyperlink_Navigate(TLType.MessageEntityEmail, navstr);
+                Hyperlink_Navigate(TLType.MessageEntityEmail, navstr, message);
             }
         }
 
-        private static async void Hyperlink_Navigate(TLType type, object data)
+        private static async void Hyperlink_Navigate(TLType type, object data, TLMessage message)
         {
             if (type == TLType.InputMessageEntityMentionName)
             {
@@ -602,12 +571,12 @@ namespace Unigram.Common
                         var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
                         if (service != null)
                         {
-                            service.Navigate(typeof(UserInfoPage), user);
+                            service.Navigate(typeof(UserDetailsPage), new TLPeerUser { UserId = user.Id });
                         }
                     }
                 }
             }
-            else if(type == TLType.MessageEntityMentionName)
+            else if (type == TLType.MessageEntityMentionName)
             {
                 var user = InMemoryCacheService.Current.GetUser((int)data);
                 if (user != null)
@@ -615,7 +584,7 @@ namespace Unigram.Common
                     var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
                     if (service != null)
                     {
-                        service.Navigate(typeof(UserInfoPage), user);
+                        service.Navigate(typeof(UserDetailsPage), new TLPeerUser { UserId = user.Id });
                     }
                 }
             }
@@ -624,39 +593,34 @@ namespace Unigram.Common
                 var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
                 if (service != null)
                 {
-                    var user = InMemoryCacheService.Current.GetUser((string)data);
-                    if (user != null)
+                    var user = InMemoryCacheService.Current.GetUser((string)data) as TLUser;
+                    if (user != null && user.HasAccessHash)
                     {
-                        service.Navigate(typeof(UserInfoPage), user);
+                        service.Navigate(typeof(UserDetailsPage), new TLPeerUser { UserId = user.Id });
                         return;
                     }
 
                     var channel = InMemoryCacheService.Current.GetChannel((string)data);
-                    if (channel != null)
+                    if (channel != null && channel.HasAccessHash)
                     {
-                        service.Navigate(typeof(ChatInfoPage), new TLInputPeerChannel { ChannelId = channel.Id, AccessHash = channel.AccessHash ?? 0 });
+                        service.Navigate(typeof(DialogPage), new TLPeerChannel { ChannelId = channel.Id });
                         return;
                     }
 
                     var response = await MTProtoService.Current.ResolveUsernameAsync(((string)data).TrimStart('@'));
                     if (response.IsSucceeded)
                     {
-                        var peerUser = response.Value.Peer as TLPeerUser;
+                        var peerUser = response.Result.Peer as TLPeerUser;
                         if (peerUser != null)
                         {
-                            var userBase = response.Value.Users.FirstOrDefault();
-                            if (userBase != null)
-                            {
-                                service.Navigate(typeof(UserInfoPage), userBase);
-                                return;
-                            }
+                            service.Navigate(typeof(UserDetailsPage), peerUser);
+                            return;
                         }
 
-                        var peerChat = response.Value.Peer as TLPeerChat;
-                        var peerChannel = response.Value.Peer as TLPeerChannel;
-                        if (peerChannel != null || peerChat != null)
+                        var peerChannel = response.Result.Peer as TLPeerChannel;
+                        if (peerChannel != null)
                         {
-                            // TODO
+                            service.Navigate(typeof(DialogPage), peerChannel);
                             return;
                         }
 
@@ -669,6 +633,11 @@ namespace Unigram.Common
                     }
                 }
             }
+            else if (type == TLType.MessageEntityHashtag)
+            {
+                //await UnigramContainer.Instance.ResolveType<MainViewModel>().Dialogs.SearchAsync((string)data);
+                UnigramContainer.Current.ResolveType<MainViewModel>().Dialogs.SearchQuery = (string)data;
+            }
             else
             {
                 var navigation = (string)data;
@@ -680,16 +649,29 @@ namespace Unigram.Common
                     }
                     else
                     {
+                        if (message?.Media is TLMessageMediaWebPage webpageMedia)
+                        {
+                            if (webpageMedia.WebPage is TLWebPage webpage && webpage.HasCachedPage && webpage.Url.Equals(navigation))
+                            {
+                                var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
+                                if (service != null)
+                                {
+                                    service.Navigate(typeof(ArticlePage), webpageMedia);
+                                    return;
+                                }
+                            }
+                        }
+
                         if (type == TLType.MessageEntityTextUrl)
                         {
-                            var dialog = new MessageDialog(navigation, "Open this link?");
-                            dialog.Commands.Add(new UICommand("OK", (_) => { }, 0));
-                            dialog.Commands.Add(new UICommand("Cancel", (_) => { }, 1));
-                            dialog.DefaultCommandIndex = 0;
-                            dialog.CancelCommandIndex = 1;
+                            var dialog = new TLMessageDialog(navigation, "Open this link?");
+                            dialog.Title = "Open this link?";
+                            dialog.Message = navigation;
+                            dialog.PrimaryButtonText = "Open";
+                            dialog.SecondaryButtonText = "Cancel";
 
                             var result = await dialog.ShowAsync();
-                            if (result == null || (int)result?.Id == 1)
+                            if (result != ContentDialogResult.Primary)
                             {
                                 return;
                             }
@@ -700,8 +682,7 @@ namespace Unigram.Common
                             navigation = "http://" + navigation;
                         }
 
-                        Uri uri;
-                        if (Uri.TryCreate(navigation, UriKind.Absolute, out uri))
+                        if (Uri.TryCreate(navigation, UriKind.Absolute, out Uri uri))
                         {
                             await Launcher.LaunchUriAsync(uri);
                         }
@@ -824,13 +805,11 @@ namespace Unigram.Common
             {
                 var query = url.ParseQueryString();
 
-                PageKind pageKind;
-                var accessToken = GetAccessToken(query, out pageKind);
+                var accessToken = GetAccessToken(query, out PageKind pageKind);
                 var post = GetPost(query);
                 var result = url.StartsWith("https://") ? url : ("https://" + url);
 
-                Uri uri;
-                if (Uri.TryCreate(result, UriKind.Absolute, out uri))
+                if (Uri.TryCreate(result, UriKind.Absolute, out Uri uri))
                 {
                     if (uri.Segments.Length >= 2)
                     {
@@ -841,20 +820,143 @@ namespace Unigram.Common
                         }
                         if (!string.IsNullOrEmpty(username))
                         {
-                            //NavigateToUsername(username, accessToken, post, pageKind);
+                            NavigateToUsername(MTProtoService.Current, username, accessToken, post, null);
                         }
                     }
                 }
             }
         }
 
+        private static async void NavigateToUsername(IMTProtoService mtProtoService, string username, string accessToken, string post, string game)
+        {
+            var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
+            if (service != null && mtProtoService != null)
+            {
+                var user = InMemoryCacheService.Current.GetUser(username) as TLUser;
+                if (user != null && user.HasAccessHash)
+                {
+                    //if (!string.IsNullOrEmpty(game))
+                    //{
+                    //    TelegramViewBase.NavigateToGame(user, game);
+                    //    return;
+                    //}
+                    //TelegramViewBase.NavigateToUser(user, accessToken, pageKind);
+
+                    service.Navigate(typeof(UserDetailsPage), new TLPeerUser { UserId = user.Id });
+
+                    return;
+                }
+                else
+                {
+                    var channel = InMemoryCacheService.Current.GetChannel(username) as TLChannel;
+                    if (channel != null && channel.HasAccessHash)
+                    {
+                        if (int.TryParse(post, out int postId))
+                        {
+                            service.Navigate(typeof(DialogPage), Tuple.Create((TLPeerBase)new TLPeerChannel { ChannelId = channel.Id }, postId));
+                        }
+                        else
+                        {
+                            service.Navigate(typeof(DialogPage), new TLPeerChannel { ChannelId = channel.Id });
+                        }
+                        return;
+                    }
+
+                    var response = await mtProtoService.ResolveUsernameAsync(username);
+                    if (response.IsSucceeded)
+                    {
+                        var peerUser = response.Result.Peer as TLPeerUser;
+                        if (peerUser != null)
+                        {
+                            service.Navigate(typeof(UserDetailsPage), peerUser);
+                            return;
+                        }
+
+                        var peerChannel = response.Result.Peer as TLPeerChannel;
+                        if (peerChannel != null)
+                        {
+                            if (int.TryParse(post, out int postId))
+                            {
+                                service.Navigate(typeof(DialogPage), Tuple.Create((TLPeerBase)peerChannel, postId));
+                            }
+                            else
+                            {
+                                service.Navigate(typeof(DialogPage), peerChannel);
+                            }
+                            return;
+                        }
+
+                        await new MessageDialog("No user found with this username", "Argh!").ShowAsync();
+                    }
+                    else
+                    {
+                        // TODO
+                        await new MessageDialog("No user found with this username", "Argh!").ShowAsync();
+                    }
+
+                    //mtProtoService.ResolveUsernameAsync(new TLString(username), delegate (TLResolvedPeer result)
+                    //{
+                    //    Telegram.Api.Helpers.Execute.BeginOnUIThread(delegate
+                    //    {
+                    //        if (frame != null)
+                    //        {
+                    //            frame.CloseBlockingProgress();
+                    //        }
+                    //        TLPeerUser tLPeerUser = result.Peer as TLPeerUser;
+                    //        if (tLPeerUser != null)
+                    //        {
+                    //            TLUserBase tLUserBase = Enumerable.FirstOrDefault<TLUserBase>(result.Users);
+                    //            if (tLUserBase != null)
+                    //            {
+                    //                if (!string.IsNullOrEmpty(game))
+                    //                {
+                    //                    TelegramViewBase.NavigateToGame(tLUserBase, game);
+                    //                    return;
+                    //                }
+                    //                TelegramViewBase.NavigateToUser(tLUserBase, accessToken, pageKind);
+                    //                return;
+                    //            }
+                    //        }
+                    //        TLPeerChannel tLPeerChannel = result.Peer as TLPeerChannel;
+                    //        TLPeerChat tLPeerChat = result.Peer as TLPeerChat;
+                    //        if (tLPeerChannel != null || tLPeerChat != null)
+                    //        {
+                    //            TLChatBase tLChatBase = Enumerable.FirstOrDefault<TLChatBase>(result.Chats);
+                    //            if (tLChatBase != null)
+                    //            {
+                    //                TelegramViewBase.NavigateToChat(tLChatBase, post);
+                    //                return;
+                    //            }
+                    //        }
+                    //        MessageBox.Show(string.Format(AppResources.CantFindContactWithUsername, username), AppResources.Error, 0);
+                    //    });
+                    //}, delegate (TLRPCError error)
+                    //{
+                    //    Telegram.Api.Helpers.Execute.BeginOnUIThread(delegate
+                    //    {
+                    //        if (frame != null)
+                    //        {
+                    //            frame.CloseBlockingProgress();
+                    //        }
+                    //        if (error.CodeEquals(ErrorCode.BAD_REQUEST) && error.TypeEquals(ErrorType.USERNAME_NOT_OCCUPIED))
+                    //        {
+                    //            MessageBox.Show(string.Format(AppResources.CantFindContactWithUsername, username), AppResources.Error, 0);
+                    //            return;
+                    //        }
+                    //        Telegram.Api.Helpers.Execute.ShowDebugMessage(string.Format("contacts.resolveUsername {0} error {1}", username, error));
+                    //    });
+                    //});
+                }
+            }
+        }
+
         private static async void NavigateToInviteLink(string link)
         {
-            var protoService = UnigramContainer.Instance.ResolverType<IMTProtoService>();
+            var protoService = UnigramContainer.Current.ResolveType<IMTProtoService>();
             var response = await protoService.CheckChatInviteAsync(link);
             if (response.IsSucceeded)
             {
-                var inviteAlready = response.Value as TLChatInviteAlready;
+                var inviteAlready = response.Result as TLChatInviteAlready;
                 if (inviteAlready != null)
                 {
                     var service = WindowWrapper.Current().NavigationServices.GetByFrameId("Main");
@@ -871,28 +973,28 @@ namespace Unigram.Common
                     }
                 }
 
-                var invite = response.Value as TLChatInvite;
+                var invite = response.Result as TLChatInvite;
                 if (invite != null)
                 {
                     var content = "AppResources.JoinGroupConfirmation";
-                    if (invite.IsChannel && !invite.IsMegagroup)
+                    if (invite.IsChannel && !invite.IsMegaGroup)
                     {
                         content = "AppResources.JoinChannelConfirmation";
                     }
 
-                    var dialog = new MessageDialog(content, invite.Title);
-                    dialog.Commands.Add(new UICommand("OK", (_) => { }, 0));
-                    dialog.Commands.Add(new UICommand("Cancel", (_) => { }, 1));
-                    dialog.DefaultCommandIndex = 0;
-                    dialog.CancelCommandIndex = 1;
+                    var dialog = new TLMessageDialog(content, invite.Title);
+                    dialog.Title = invite.Title;
+                    dialog.Content = content;
+                    dialog.PrimaryButtonText = "OK";
+                    dialog.SecondaryButtonText = "Cancel";
 
                     var result = await dialog.ShowAsync();
-                    if (result != null && (int)result?.Id == 0)
+                    if (result == ContentDialogResult.Primary)
                     {
                         var import = await protoService.ImportChatInviteAsync(link);
                         if (import.IsSucceeded)
                         {
-                            var updates = import.Value as TLUpdates;
+                            var updates = import.Result as TLUpdates;
                             if (updates != null)
                             {
                                 var chatBase = updates.Chats.FirstOrDefault();
@@ -1075,8 +1177,7 @@ namespace Unigram.Common
             {
                 foreach (Match match in matches)
                 {
-                    var index = 0;
-                    var isCommand = IsValidCommand(match.Value, out index);
+                    var isCommand = IsValidCommand(match.Value, out int index);
 
                     var navstr = match.Value.Substring(index);
                     if (navstr.StartsWith("@"))
@@ -1114,6 +1215,75 @@ namespace Unigram.Common
                     message.Entities.Add(entity);
                 }
             }
+        }
+
+        public static void CopyToClipboard(TLMessage message)
+        {
+            CopyToClipboard(message.Message, (IEnumerable<TLMessageEntityBase>)message.Entities ?? new TLMessageEntityBase[0]);
+        }
+
+        public static void CopyToClipboard(string message, IEnumerable<TLMessageEntityBase> entities)
+        {
+            var tdesktop = GetTDesktopClipboard(entities);
+
+            var package = new DataPackage();
+            if (tdesktop != null) package.SetData("application/x-td-field-tags", tdesktop);
+            package.SetText(message);
+            Clipboard.SetContent(package);
+        }
+
+        private static IRandomAccessStream GetTDesktopClipboard(IEnumerable<TLMessageEntityBase> entities)
+        {
+            var mentions = entities.Where(x => x is TLInputMessageEntityMentionName || x is TLMessageEntityMentionName).ToList();
+            if (mentions.Count > 0)
+            {
+                using (var stream = new InMemoryRandomAccessStream())
+                {
+                    using (var writer = new BinaryWriter(stream.AsStream()))
+                    {
+                        var count = BitConverter.GetBytes(mentions.Count);
+                        Array.Reverse(count);
+                        writer.Write(count);
+
+                        foreach (var entity in mentions)
+                        {
+                            var offset = BitConverter.GetBytes(entity.Offset);
+                            Array.Reverse(offset);
+                            writer.Write(offset);
+
+                            var length = BitConverter.GetBytes(entity.Length);
+                            Array.Reverse(length);
+                            writer.Write(length);
+
+                            var tag = string.Empty;
+                            var inputMention = entity as TLInputMessageEntityMentionName;
+                            if (inputMention != null)
+                            {
+                                var userId = inputMention.UserId as TLInputUser;
+                                var tempTag = $"mention://user.{userId.UserId}.{userId.AccessHash}:{SettingsHelper.UserId}";
+
+                                foreach (var c in tempTag)
+                                {
+                                    tag += $"\0{c}";
+                                }
+                            }
+
+                            //tag = "\0m\0e\0n\0t\0i\0o\0n\0:\0/\0/\0u\0s\0e\0r\0.\02\04\03\01\03\06\06\05\01\0.\04\07\01\06\00\02\09\07\09\00\03\03\08\04\01\04\04\07\03\0:\03\08\04\07\05\08\06\01";
+
+                            var tagLength = BitConverter.GetBytes(tag.Length);
+                            Array.Reverse(tagLength);
+                            writer.Write(tagLength);
+
+                            var tagBytes = Encoding.ASCII.GetBytes(tag);
+                            writer.Write(tagBytes);
+                        }
+
+                        return stream.CloneStream();
+                    }
+                }
+            }
+
+            return null;
         }
     }
 

@@ -28,6 +28,17 @@ using Windows.Storage;
 using Windows.UI.Popups;
 using Unigram.Views;
 using Windows.Media;
+using System.IO;
+using Template10.Services.NavigationService;
+using Unigram.Common;
+using Unigram.Views.Login;
+using Windows.UI.Core;
+using Unigram.Converters;
+using Windows.Foundation.Metadata;
+using Windows.ApplicationModel.Core;
+using System.Collections;
+using Telegram.Api.TL;
+using System.Collections.Generic;
 
 namespace Unigram
 {
@@ -38,6 +49,16 @@ namespace Unigram
     {
         public static ShareOperation ShareOperation { get; private set; }
         public static AppServiceConnection Connection { get; private set; }
+
+        public static AppState State { get; } = new AppState();
+
+        public ViewModelLocator Locator
+        {
+            get
+            {
+                return Resources["Locator"] as ViewModelLocator;
+            }
+        }
 
         private BackgroundTaskDeferral appServiceDeferral = null;
 
@@ -55,24 +76,23 @@ namespace Unigram
             m_mediaExtensionManager = new MediaExtensionManager();
             m_mediaExtensionManager.RegisterByteStreamHandler("Unigram.Native.OpusByteStreamHandler", ".ogg", "audio/ogg");
 
+            FileUtils.CreateTemporaryFolder();
+
             UnhandledException += async (s, args) =>
             {
                 args.Handled = true;
-                await FileIO.WriteTextAsync(await KnownFolders.PicturesLibrary.CreateFileAsync("unigram_log.txt", CreationCollisionOption.GenerateUniqueName), args.Exception?.ToString() ?? "Error" + "\r\n" + args.Message);
-                await new MessageDialog(args.Exception?.ToString() ?? "Error", args.Message ?? "Error").ShowAsync();
+                await new MessageDialog(args.Message ?? "Error", args.Exception?.ToString() ?? "Error").ShowAsync();
             };
 
-#if RELEASE
+#if !DEBUG
 
-            Microsoft.HockeyApp.HockeyClient.Current.Configure("f914027fdbf04179b2a84bb0ab6ff0b9",
+            HockeyClient.Current.Configure("7d36a4260af54125bbf6db407911ed3b",
                 new TelemetryConfiguration()
                 {
                     EnableDiagnostics = true,
-                    Collectors = Microsoft.HockeyApp.WindowsCollectors.Metadata |
-                                    Microsoft.HockeyApp.WindowsCollectors.PageView |
-                                    Microsoft.HockeyApp.WindowsCollectors.Session |
-                                    Microsoft.HockeyApp.WindowsCollectors.UnhandledException |
-                                    Microsoft.HockeyApp.WindowsCollectors.WatsonData
+                    Collectors = WindowsCollectors.Metadata |
+                                 WindowsCollectors.Session |
+                                 WindowsCollectors.UnhandledException
                 });
 
 #endif
@@ -107,21 +127,19 @@ namespace Unigram
         public override Task OnInitializeAsync(IActivatedEventArgs args)
         {
             Execute.Initialize();
-            var timer = Stopwatch.StartNew();
-            ((ViewModelLocator)Resources["Locator"]).Configure();
-            Debug.WriteLine($"INITIALIZE TIME: {timer.Elapsed}");
+            Locator.Configure();
             return base.OnInitializeAsync(args);
         }
 
-        public override async Task OnStartAsync(StartKind startKind, IActivatedEventArgs args)
+        public override Task OnStartAsync(StartKind startKind, IActivatedEventArgs args)
         {
-            //NavigationService.Navigate(typeof(PlaygroundPage));
-            //return;
-
-            TileUpdateManager.CreateTileUpdaterForApplication().Clear();
+            //NavigationService.Navigate(typeof(BlankPage1));
+            //return Task.CompletedTask;
 
             ModalDialog.ModalBackground = (SolidColorBrush)Resources["ContentDialogLightDismissOverlayBackground"];
             ModalDialog.ModalBackground = new SolidColorBrush(Color.FromArgb(0x54, 0x00, 0x00, 0x00));
+            ModalDialog.CanBackButtonDismiss = true;
+            ModalDialog.DisableBackButtonWhenModal = false;
 
             var timer = Stopwatch.StartNew();
 
@@ -175,8 +193,19 @@ namespace Unigram
             ShowStatusBar();
             ColourTitleBar();
             ApplicationView.GetForCurrentView().SetPreferredMinSize(new Windows.Foundation.Size(320, 500));
+            SystemNavigationManager.GetForCurrentView().AppViewBackButtonVisibility = AppViewBackButtonVisibility.Visible;
 
+            Task.Run(() => OnStartSync());
+            return Task.CompletedTask;
+        }
+
+        private async void OnStartSync()
+        {
             await Toast.RegisterBackgroundTasks();
+
+            BadgeUpdateManager.CreateBadgeUpdaterForApplication().Clear();
+            TileUpdateManager.CreateTileUpdaterForApplication().Clear();
+            ToastNotificationManager.History.Clear();
 
             try
             {
@@ -187,12 +216,22 @@ namespace Unigram
             catch { }
         }
 
+        public override void OnResuming(object s, object e, AppExecutionState previousExecutionState)
+        {
+            var updatesService = UnigramContainer.Current.ResolveType<IUpdatesService>();
+            updatesService.LoadStateAndUpdate(() => { });
+
+            base.OnResuming(s, e, previousExecutionState);
+        }
+
         public override Task OnSuspendingAsync(object s, SuspendingEventArgs e, bool prelaunchActivated)
         {
-            var cacheService = UnigramContainer.Instance.ResolverType<ICacheService>();
+            //DefaultPhotoConverter.BitmapContext.Clear();
+
+            var cacheService = UnigramContainer.Current.ResolveType<ICacheService>();
             cacheService.TryCommit();
 
-            var updatesService = UnigramContainer.Instance.ResolverType<IUpdatesService>();
+            var updatesService = UnigramContainer.Current.ResolveType<IUpdatesService>();
             updatesService.SaveState();
             updatesService.CancelUpdating();
 
@@ -203,7 +242,7 @@ namespace Unigram
         private void ShowStatusBar()
         {
             // Show StatusBar on Win10 Mobile, in theme of the pass
-            if (Windows.Foundation.Metadata.ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
+            if (ApiInformation.IsTypePresent("Windows.UI.ViewManagement.StatusBar"))
             {
                 var statusBar = StatusBar.GetForCurrentView();
 
@@ -226,9 +265,12 @@ namespace Unigram
             {
                 // Changes to the titlebar (colour, and such)
                 ApplicationViewTitleBar titlebar = ApplicationView.GetForCurrentView().TitleBar;
+                CoreApplication.GetCurrentView().TitleBar.ExtendViewIntoTitleBar = false;
 
                 // Accent Color
-                var accentColour = Application.Current.Resources["SystemControlHighlightAccentBrush"] as SolidColorBrush;
+                var accentBrush = Application.Current.Resources["SystemControlHighlightAccentBrush"] as SolidColorBrush;
+                var titleBrush = Application.Current.Resources["TelegramBackgroundTitlebarBrush"] as SolidColorBrush;
+                var subtitleBrush = Application.Current.Resources["TelegramBackgroundSubtitleBarBrush"] as SolidColorBrush;
 
                 // Foreground
                 titlebar.ButtonForegroundColor = Colors.White;
@@ -239,12 +281,14 @@ namespace Unigram
                 titlebar.InactiveForegroundColor = Colors.LightGray;
 
                 // Background
-                titlebar.BackgroundColor = accentColour.Color;
-                titlebar.ButtonBackgroundColor = accentColour.Color;
-                titlebar.ButtonInactiveBackgroundColor = accentColour.Color;
-                titlebar.ButtonHoverBackgroundColor = Helpers.ColorHelper.ChangeShade(accentColour.Color, -0.06f);
-                titlebar.ButtonPressedBackgroundColor = Helpers.ColorHelper.ChangeShade(accentColour.Color, -0.09f);
-                titlebar.InactiveBackgroundColor = accentColour.Color;
+                titlebar.BackgroundColor = titleBrush.Color;
+                titlebar.ButtonBackgroundColor = titleBrush.Color;
+
+                titlebar.InactiveBackgroundColor = subtitleBrush.Color;
+                titlebar.ButtonInactiveBackgroundColor = subtitleBrush.Color;
+
+                titlebar.ButtonHoverBackgroundColor = Helpers.ColorHelper.ChangeShade(titleBrush.Color, -0.06f);
+                titlebar.ButtonPressedBackgroundColor = Helpers.ColorHelper.ChangeShade(titleBrush.Color, -0.09f);
 
                 // Branding colours
                 //titlebar.BackgroundColor = Color.FromArgb(255, 54, 173, 225);
@@ -257,5 +301,10 @@ namespace Unigram
                 Debug.WriteLine("Device does not have a Titlebar");
             }
         }
+    }
+
+    public class AppState
+    {
+        public IEnumerable<TLMessage> ForwardMessages { get; set; }
     }
 }

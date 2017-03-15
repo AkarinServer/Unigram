@@ -23,6 +23,11 @@ using Unigram.Core.Services;
 using Unigram.ViewModels;
 using Unigram.ViewModels.Login;
 using Unigram.Views.Login;
+using Unigram.ViewModels.Settings;
+using Unigram.Services;
+using Unigram.ViewModels.Channels;
+using Unigram.ViewModels.Chats;
+using Unigram.ViewModels.Users;
 
 namespace Unigram
 {
@@ -32,14 +37,16 @@ namespace Unigram
 
         public ViewModelLocator()
         {
-            container = UnigramContainer.Instance;
+            container = UnigramContainer.Current;
         }
 
-        public IHardwareService HardwareService => UnigramContainer.Instance.ResolverType<IHardwareService>();
+        public IHardwareService HardwareService => container.ResolveType<IHardwareService>();
 
         public void Configure()
         {
             InitializeLayer();
+
+            container.Reset();
 
             // .SingleIstance() is required to register a singleton service.
             container.ContainerBuilder.RegisterType<MTProtoService>().As<IMTProtoService>().SingleInstance();
@@ -58,10 +65,12 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadDocumentManager>().SingleInstance();
             container.ContainerBuilder.RegisterType<UploadManager>().As<IUploadVideoManager>().SingleInstance();
 
+            container.ContainerBuilder.RegisterType<ContactsService>().As<IContactsService>().SingleInstance();
             container.ContainerBuilder.RegisterType<LocationService>().As<ILocationService>().SingleInstance();
             container.ContainerBuilder.RegisterType<PushService>().As<IPushService>().SingleInstance();
             container.ContainerBuilder.RegisterType<JumpListService>().As<IJumpListService>().SingleInstance();
             container.ContainerBuilder.RegisterType<HardwareService>().As<IHardwareService>().SingleInstance();
+            container.ContainerBuilder.RegisterType<GifsService>().As<IGifsService>().SingleInstance();
 
             // ViewModels
             container.ContainerBuilder.RegisterType<LoginWelcomeViewModel>();
@@ -71,23 +80,40 @@ namespace Unigram
             container.ContainerBuilder.RegisterType<MainViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogSendLocationViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<DialogViewModel>();
-            container.ContainerBuilder.RegisterType<UserInfoViewModel>();
-            container.ContainerBuilder.RegisterType<ChatInfoViewModel>();// .SingleInstance();
+            container.ContainerBuilder.RegisterType<UserDetailsViewModel>();
+            container.ContainerBuilder.RegisterType<ChatDetailsViewModel>();// .SingleInstance();
             container.ContainerBuilder.RegisterType<DialogSharedMediaViewModel>(); // .SingleInstance();
+            container.ContainerBuilder.RegisterType<UsersSelectionViewModel>(); //.SingleInstance();
+            container.ContainerBuilder.RegisterType<CreateChannelStep1ViewModel>(); //.SingleInstance();
+            container.ContainerBuilder.RegisterType<CreateChannelStep2ViewModel>(); //.SingleInstance();
+            container.ContainerBuilder.RegisterType<CreateChatStep1ViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<CreateChatStep2ViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<ArticleViewModel>().SingleInstance();
             container.ContainerBuilder.RegisterType<SettingsViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsStorageViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<FeaturedStickersViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsUsernameViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsEditNameViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsSessionsViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsBlockedUsersViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsBlockUserViewModel>();
+            container.ContainerBuilder.RegisterType<SettingsFeaturedStickersViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsNotificationsViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsAccountsViewModel>().SingleInstance();
+            container.ContainerBuilder.RegisterType<SettingsStickersViewModel>().SingleInstance();
 
             container.Build();
 
-            Task.Run(() => Initialize());
+            Task.Run(() => LoadStateAndUpdate());
         }
 
         private void InitializeLayer()
         {
             var deleteIfExists = new Action<string>((path) =>
             {
-                if (File.Exists(Path.Combine(ApplicationData.Current.LocalFolder.Path, path)))
+                if (File.Exists(FileUtils.GetFileName(path)))
                 {
-                    File.Delete(Path.Combine(ApplicationData.Current.LocalFolder.Path, path));
+                    File.Delete(FileUtils.GetFileName(path));
                 }
             });
 
@@ -116,11 +142,11 @@ namespace Unigram
             }
         }
 
-        private void Initialize()
+        public void LoadStateAndUpdate()
         {
-            var cacheService = UnigramContainer.Instance.ResolverType<ICacheService>();
-            var protoService = UnigramContainer.Instance.ResolverType<IMTProtoService>();
-            var updatesService = UnigramContainer.Instance.ResolverType<IUpdatesService>();
+            var cacheService = UnigramContainer.Current.ResolveType<ICacheService>();
+            var protoService = UnigramContainer.Current.ResolveType<IMTProtoService>();
+            var updatesService = UnigramContainer.Current.ResolveType<IUpdatesService>();
             cacheService.Init();
             updatesService.GetCurrentUserId = () => protoService.CurrentUserId;
             updatesService.GetStateAsync = protoService.GetStateCallback;
@@ -129,10 +155,11 @@ namespace Unigram
             //updatesService.AcceptEncryptionAsync = protoService.AcceptEncryptionCallback;
             //updatesService.SendEncryptedServiceAsync = protoService.SendEncryptedServiceCallback;
             updatesService.SetMessageOnTimeAsync = protoService.SetMessageOnTime;
-            //updatesService.RemoveFromQueue = protoService.RemoveFromQueue;
             updatesService.UpdateChannelAsync = protoService.UpdateChannelCallback;
             updatesService.GetParticipantAsync = protoService.GetParticipantCallback;
+            updatesService.GetFullUserAsync = protoService.GetFullUserCallback;
             updatesService.GetFullChatAsync = protoService.GetFullChatCallback;
+            updatesService.GetChannelMessagesAsync = protoService.GetMessagesCallback;
             updatesService.LoadStateAndUpdate(() => { });
 
             protoService.AuthorizationRequired += (s, e) =>
@@ -142,8 +169,13 @@ namespace Unigram
 
                 Execute.BeginOnUIThread(() =>
                 {
-                    App.Current.NavigationService.Navigate(typeof(LoginWelcomePage));
-                    App.Current.NavigationService.Frame.BackStack.Clear();
+                    var type = App.Current.NavigationService.CurrentPageType;
+                    if (type.Name.StartsWith("Login")) { }
+                    else
+                    {
+                        App.Current.NavigationService.Navigate(typeof(LoginWelcomePage));
+                        App.Current.NavigationService.Frame.BackStack.Clear();
+                    }
                 });
             };
         }

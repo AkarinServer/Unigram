@@ -4,7 +4,8 @@ using System;
 namespace Telegram.Api.TL.Methods.Updates
 {
 	/// <summary>
-	/// RCP method updates.getChannelDifference
+	/// RCP method updates.getChannelDifference.
+	/// Returns <see cref="Telegram.Api.TL.TLUpdatesChannelDifferenceBase"/>
 	/// </summary>
 	public partial class TLUpdatesGetChannelDifference : TLObject
 	{
@@ -23,32 +24,30 @@ namespace Telegram.Api.TL.Methods.Updates
 		public Int32 Limit { get; set; }
 
 		public TLUpdatesGetChannelDifference() { }
-		public TLUpdatesGetChannelDifference(TLBinaryReader from, bool cache = false)
+		public TLUpdatesGetChannelDifference(TLBinaryReader from)
 		{
-			Read(from, cache);
+			Read(from);
 		}
 
 		public override TLType TypeId { get { return TLType.UpdatesGetChannelDifference; } }
 
-		public override void Read(TLBinaryReader from, bool cache = false)
+		public override void Read(TLBinaryReader from)
 		{
 			Flags = (Flag)from.ReadInt32();
-			Channel = TLFactory.Read<TLInputChannelBase>(from, cache);
-			Filter = TLFactory.Read<TLChannelMessagesFilterBase>(from, cache);
+			Channel = TLFactory.Read<TLInputChannelBase>(from);
+			Filter = TLFactory.Read<TLChannelMessagesFilterBase>(from);
 			Pts = from.ReadInt32();
 			Limit = from.ReadInt32();
-			if (cache) ReadFromCache(from);
 		}
 
-		public override void Write(TLBinaryWriter to, bool cache = false)
+		public override void Write(TLBinaryWriter to)
 		{
 			to.Write(0x3173D78);
 			to.Write((Int32)Flags);
-			to.WriteObject(Channel, cache);
-			to.WriteObject(Filter, cache);
+			to.WriteObject(Channel);
+			to.WriteObject(Filter);
 			to.Write(Pts);
 			to.Write(Limit);
-			if (cache) WriteToCache(to);
 		}
 	}
 }

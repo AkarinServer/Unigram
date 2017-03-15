@@ -17,28 +17,9 @@
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <Grid Width="48" Height="48" VerticalAlignment="Top">
-                <Border Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageMediaBackgroundBrush}" Tapped="Border_Tapped">
-                    <SymbolIcon Symbol="{Binding Media, Converter={StaticResource FileExistsToGlyphConverter}}" Foreground="{ThemeResource MessageMediaForegroundBrush}"/>
-                </Border>
-                <!--<controls:ImageControl TelegramSource="{Binding Document}" Stretch="UniformToFill"/>-->
-
-                <!--<controls:ProgressBarRing 
-                    Background="Transparent"
-                    Foreground="{ThemeResource MessageMediaForegroundBrush}"
-                    SmoothValue="{Binding DownloadingProgress}" 
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelDownloadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>
-
-                <controls:ProgressBarRing 
-                    Background="Transparent"
-                    Foreground="{ThemeResource MessageMediaForegroundBrush}"
-                    SmoothValue="{Binding UploadingProgress}"
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>-->
-                <controls:ProgressBarRing Background="{ThemeResource MessageMediaBackgroundBrush}" Foreground="{ThemeResource MessageMediaForegroundBrush}" Value="{Binding Media.Progress}"/>
+            <Grid Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageMediaBackgroundBrush}" VerticalAlignment="Top">
+                <controls:TransferButton Click="DownloadDocument_Click" Media="{Binding Media}" Foreground="{ThemeResource MessageMediaForegroundBrush}" CornerRadius="24"/>
+                <controls:ProgressBarRing Background="Transparent" Foreground="{ThemeResource MessageMediaForegroundBrush}" Value="{Binding Media.Progress}" IsHitTestVisible="False"/>
             </Grid>
             <StackPanel Margin="8,0,0,2" VerticalAlignment="Center" Grid.Column="1">
                 <TextBlock Text="{Binding Media.Document.FileName}" Foreground="{ThemeResource MessageForegroundBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{ThemeResource BaseTextBlockStyle}"/>
@@ -55,29 +36,11 @@
             </Grid.ColumnDefinitions>
             <Grid Width="72" Height="72" Background="Black" VerticalAlignment="Top">
                 <Image Source="{Binding Media.Document, Converter={StaticResource DefaultPhotoConverter}}" Width="72" Height="72" Stretch="UniformToFill"/>
-                
-                <Border Width="48" Height="48" CornerRadius="24" Background="#54000000" Tapped="Border_Tapped">
-                    <SymbolIcon Symbol="{Binding Media, Converter={StaticResource FileExistsToGlyphConverter}}" Foreground="White"/>
-                </Border>
-                <!--<controls:ImageControl TelegramSource="{Binding Document}" Stretch="UniformToFill"/>-->
 
-                <!--<controls:ProgressBarRing 
-                    Background="Transparent"
-                    Foreground="{ThemeResource MessageMediaForegroundBrush}"
-                    SmoothValue="{Binding DownloadingProgress}" 
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelDownloadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>
-
-                <controls:ProgressBarRing 
-                    Background="Transparent"
-                    Foreground="{ThemeResource MessageMediaForegroundBrush}"
-                    SmoothValue="{Binding UploadingProgress}"
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>-->
-
-                <controls:ProgressBarRing Value="{Binding Media.Progress}"/>
+                <Grid Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageOverlayBackgroundBrush}">
+                    <controls:TransferButton Click="DownloadDocument_Click" Media="{Binding Media}" Foreground="White" CornerRadius="24" RequestedTheme="Dark"/>
+                    <controls:ProgressBarRing Background="Transparent" Foreground="White" Value="{Binding Media.Progress}" IsHitTestVisible="False"/>
+                </Grid>
             </Grid>
             <StackPanel Margin="8,0,0,2" VerticalAlignment="Center" Grid.Column="1">
                 <TextBlock Text="{Binding Media.Document.FileName}" Foreground="{ThemeResource MessageForegroundBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{ThemeResource BaseTextBlockStyle}"/>
@@ -90,7 +53,7 @@
         <Grid Background="Black" 
               MinWidth="{ThemeResource TelegramMediaMinWidth}" 
               MinHeight="{ThemeResource TelegramMediaMinHeight}">
-            <controls:ImageView Source="{Binding Media.Photo, Converter={StaticResource DefaultPhotoConverter}}"
+            <controls:ImageView Source="{Binding Media.Photo, Converter={StaticResource DefaultPhotoConverter}, ConverterParameter=thumbnail}"
                                 Constraint="{Binding Media.Photo}" 
                                 MaxWidth="{ThemeResource TelegramMediaMaxWidth}" 
                                 MaxHeight="{ThemeResource TelegramMediaMaxHeight}"
@@ -101,10 +64,10 @@
             <controls:ProgressBarRing Value="{Binding Media.Progress}"/>
 
             <!--<controls:ProgressBarRing 
-                    SmoothValue="{Binding UploadingProgress}"
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>-->
+                 SmoothValue="{Binding UploadingProgress}"
+                 common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
+                 Maximum="1" 
+                 Visibility="Collapsed"/>-->
         </Grid>
     </DataTemplate>
 
@@ -117,19 +80,20 @@
                                 MaxWidth="{ThemeResource TelegramMediaMaxWidth}" 
                                 MaxHeight="{ThemeResource TelegramMediaMaxHeight}"/>
 
-            <Border Background="{ThemeResource MessageOverlayBackgroundBrush}" VerticalAlignment="Top" HorizontalAlignment="Left" Padding="6,2,6,4" Margin="4">
+            <Border Background="{ThemeResource MessageOverlayBackgroundBrush}" VerticalAlignment="Top" HorizontalAlignment="Left" Padding="8,2,8,4" Margin="4">
                 <TextBlock Text="{Binding Media.Document.Duration}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="White" TextAlignment="Right" Margin="0,2,0,0"/>
             </Border>
 
-            <Border Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageOverlayBackgroundBrush}">
-                <SymbolIcon Symbol="{Binding Media, Converter={StaticResource FileExistsToGlyphConverter}}" Foreground="White"/>
-            </Border>
+            <Grid Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageOverlayBackgroundBrush}">
+                <controls:TransferButton Click="DownloadDocument_Click" Media="{Binding Media}" Foreground="White" CornerRadius="24" RequestedTheme="Dark"/>
+                <controls:ProgressBarRing Background="Transparent" Foreground="White" Value="{Binding Media.Progress}" IsHitTestVisible="False"/>
+            </Grid>
 
             <!--<controls:ProgressBarRing 
-                    SmoothValue="{Binding UploadingProgress}"
-                    common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
-                    Maximum="1" 
-                    Visibility="Collapsed"/>-->
+                 SmoothValue="{Binding UploadingProgress}"
+                 common:Attached.Tapped="{Binding Dialog.MediaCancelUploadingCommand, Source={StaticResource Locator}}"
+                 Maximum="1" 
+                 Visibility="Collapsed"/>-->
         </Grid>
     </DataTemplate>
 
@@ -146,6 +110,37 @@
         </Grid>
     </DataTemplate>
 
+    <DataTemplate x:Key="ContactMediaTemplate">
+        <Grid MinWidth="260">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <!--<Grid Background="{Binding Media.UserId, Converter={StaticResource BubblePlaceholderConverter}}" Width="48" Height="48" CornerRadius="24" Margin="0,0,12,0" Grid.RowSpan="2">
+                 <TextBlock Foreground="White" Text="{Binding Media.User, Converter={StaticResource InitialNameStringConverter}}" VerticalAlignment="Center" TextAlignment="Center"/>
+                 <Ellipse>
+                 <Ellipse.Fill>
+                 <ImageBrush ImageSource="{Binding Media.User.Photo, Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
+                 </Ellipse.Fill>
+                 </Ellipse>
+                 <Border BorderBrush="#26000000" BorderThickness="1" CornerRadius="24" Width="48" Height="48" VerticalAlignment="Top" Grid.RowSpan="2" Grid.Column="1"/>
+                 </Grid>-->
+
+            <Ellipse Width="48" Height="48" Margin="0,0,12,0" Grid.RowSpan="2">
+                <Ellipse.Fill>
+                    <ImageBrush ImageSource="{Binding Media.User, Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" AlignmentX="Center" AlignmentY="Center"/>
+                </Ellipse.Fill>
+            </Ellipse>
+            
+            <TextBlock Text="{Binding Media.FullName}" Style="{StaticResource BaseTextBlockStyle}" VerticalAlignment="Bottom" Grid.Column="1"/>
+            <TextBlock Text="{Binding Media.PhoneNumber, Converter={StaticResource PhoneNumberFormatConverter}}" Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemControlDisabledChromeDisabledLowBrush}" VerticalAlignment="Top" Grid.Row="1" Grid.Column="1"/>
+        </Grid>
+    </DataTemplate>
+
     <DataTemplate x:Key="MediaAudioTemplate">
         <Grid>
             <local:VoiceMediaControl/>
@@ -154,13 +149,40 @@
 
     <DataTemplate x:Key="MediaGeoPointTemplate">
         <Grid Background="{ThemeResource ListViewItemPlaceholderBackgroundThemeBrush}">
-            <Image Source="{Binding Media.Geo, Converter={StaticResource VenueToStaticImageConverter}}" MaxWidth="320" MaxHeight="240"/>
-            <Border Width="20" Height="20" CornerRadius="10" Background="#54000000">
+            <controls:ImageView 
+                Source="{Binding Media.Geo, Converter={StaticResource VenueToStaticImageConverter}}"
+                Constraint="{Binding Media}" 
+                Click="GeoPoint_Click"
+                MaxWidth="320" 
+                MaxHeight="240"/>
+            <Border Width="20" Height="20" CornerRadius="10" Background="#54000000" IsHitTestVisible="False">
                 <Border CornerRadius="10" Margin="1" Background="White">
                     <Border CornerRadius="10" Margin="2" Background="{ThemeResource MessageHeaderForegroundBrush}"/>
                 </Border>
             </Border>
         </Grid>
+    </DataTemplate>
+
+    <DataTemplate x:Key="MediaVenueTemplate">
+        <StackPanel>
+            <StackPanel Padding="{ThemeResource MessageContentPadding}">
+                <TextBlock Text="{Binding Media.Title}" Style="{StaticResource BaseTextBlockStyle}"/>
+                <TextBlock Text="{Binding Media.Address}" Style="{StaticResource BodyTextBlockStyle}"/>
+            </StackPanel>
+            <Grid Background="{ThemeResource ListViewItemPlaceholderBackgroundThemeBrush}">
+                <controls:ImageView 
+                    Source="{Binding Media.Geo, Converter={StaticResource VenueToStaticImageConverter}}" 
+                    Constraint="{Binding Media}" 
+                    Click="Venue_Click"
+                    MaxWidth="320" 
+                    MaxHeight="240"/>
+                <Border Width="20" Height="20" CornerRadius="10" Background="#54000000" IsHitTestVisible="False">
+                    <Border CornerRadius="10" Margin="1" Background="White">
+                        <Border CornerRadius="10" Margin="2" Background="{ThemeResource MessageHeaderForegroundBrush}"/>
+                    </Border>
+                </Border>
+            </Grid>
+        </StackPanel>
     </DataTemplate>
 
     <DataTemplate x:Key="WebPageMediaTemplate">
@@ -173,10 +195,10 @@
 
             <StackPanel Grid.Column="1">
                 <StackPanel Margin="0,0,0,2">
-                    <TextBlock Text="{Binding Media.Webpage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
                 </StackPanel>
                 
                 <Button Click="InstantView_Click" 
@@ -185,7 +207,7 @@
                         BorderBrush="{ThemeResource MessageHeaderBorderBrush}"
                         Foreground="{ThemeResource MessageHeaderForegroundBrush}"
                         RequestedTheme="{ThemeResource MessageTextBlockTheme}"
-                        Visibility="{Binding Media.Webpage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding Media.WebPage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <FontIcon Glyph="&#xE945;"/>
                         <TextBlock Text="INSTANT VIEW" Margin="12,0,0,0"/>
@@ -210,10 +232,10 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
                     <StackPanel Margin="0,0,0,2">
-                        <TextBlock Text="{Binding Media.Webpage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                        <TextBlock Text="{Binding Media.Webpage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                        <TextBlock Text="{Binding Media.Webpage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                        <TextBlock Text="{Binding Media.Webpage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                        <TextBlock Text="{Binding Media.WebPage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                        <TextBlock Text="{Binding Media.WebPage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                        <TextBlock Text="{Binding Media.WebPage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                        <TextBlock Text="{Binding Media.WebPage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
                     </StackPanel>
 
                     <Image Source="{Binding Media, Converter={StaticResource DefaultPhotoConverter}}" Stretch="UniformToFill" MaxWidth="88" MaxHeight="88" Margin="12,0,0,0" VerticalAlignment="Bottom" Grid.Column="1"/>
@@ -225,7 +247,7 @@
                         BorderBrush="{ThemeResource MessageHeaderBorderBrush}"
                         Foreground="{ThemeResource MessageHeaderForegroundBrush}"
                         RequestedTheme="{ThemeResource MessageTextBlockTheme}"
-                        Visibility="{Binding Media.Webpage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding Media.WebPage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <FontIcon Glyph="&#xE945;"/>
                         <TextBlock Text="INSTANT VIEW" Margin="12,0,0,0"/>
@@ -244,11 +266,11 @@
             <Rectangle Fill="{ThemeResource MessageHeaderBorderBrush}" Width="2" Margin="0,0,8,0"/>
 
             <StackPanel Grid.Column="1">
-                <StackPanel Margin="0,0,0,8" Visibility="{Binding Media.Webpage.SummaryVisibility}">
-                    <TextBlock Text="{Binding Media.Webpage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                <StackPanel Margin="0,0,0,8" Visibility="{Binding Media.WebPage.SummaryVisibility}">
+                    <TextBlock Text="{Binding Media.WebPage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
                 </StackPanel>
 
                 <!-- TODO: video timing -->
@@ -256,8 +278,8 @@
                       MinWidth="{ThemeResource TelegramMediaMinWidth}" 
                       MinHeight="{ThemeResource TelegramMediaMinHeight}"
                       HorizontalAlignment="Left">
-                    <controls:ImageView Source="{Binding Media.Webpage.Photo, Converter={StaticResource DefaultPhotoConverter}}"
-                                        Constraint="{Binding Media.Webpage.Photo}" 
+                    <controls:ImageView Source="{Binding Media.WebPage.Photo, Converter={StaticResource DefaultPhotoConverter}, ConverterParameter=thumbnail}"
+                                        Constraint="{Binding Media.WebPage.Photo}" 
                                         MaxWidth="{ThemeResource TelegramMediaMaxWidth}" 
                                         MaxHeight="{ThemeResource TelegramMediaMaxHeight}"/>
                 </Grid>
@@ -268,7 +290,7 @@
                         BorderBrush="{ThemeResource MessageHeaderBorderBrush}"
                         Foreground="{ThemeResource MessageHeaderForegroundBrush}"
                         RequestedTheme="{ThemeResource MessageTextBlockTheme}"
-                        Visibility="{Binding Media.Webpage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding Media.WebPage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <FontIcon Glyph="&#xE945;"/>
                         <TextBlock Text="INSTANT VIEW" Margin="12,0,0,0"/>
@@ -287,11 +309,11 @@
             <Rectangle Fill="{ThemeResource MessageHeaderBorderBrush}" Width="2" Margin="0,0,8,0"/>
 
             <StackPanel Grid.Column="1">
-                <StackPanel Margin="0,0,0,8" Visibility="{Binding Media.Webpage.SummaryVisibility}">
-                    <TextBlock Text="{Binding Media.Webpage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <TextBlock Text="{Binding Media.Webpage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.Webpage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                <StackPanel Margin="0,0,0,8" Visibility="{Binding Media.WebPage.SummaryVisibility}">
+                    <TextBlock Text="{Binding Media.WebPage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
                 </StackPanel>
 
                 <!-- TODO: video timing -->
@@ -299,8 +321,8 @@
                       MinWidth="{ThemeResource TelegramMediaMinWidth}" 
                       MinHeight="{ThemeResource TelegramMediaMinHeight}"
                       HorizontalAlignment="Left">
-                    <controls:ImageView Source="{Binding Media.Webpage.Document, Converter={StaticResource DefaultPhotoConverter}}"
-                                        Constraint="{Binding Media.Webpage.Document}" 
+                    <controls:ImageView Source="{Binding Media.WebPage.Document, Converter={StaticResource DefaultPhotoConverter}}"
+                                        Constraint="{Binding Media.WebPage.Document}" 
                                         MaxWidth="{ThemeResource TelegramMediaMaxWidth}" 
                                         MaxHeight="{ThemeResource TelegramMediaMaxHeight}"/>
                 </Grid>
@@ -311,7 +333,55 @@
                         BorderBrush="{ThemeResource MessageHeaderBorderBrush}"
                         Foreground="{ThemeResource MessageHeaderForegroundBrush}"
                         RequestedTheme="{ThemeResource MessageTextBlockTheme}"
-                        Visibility="{Binding Media.Webpage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        Visibility="{Binding Media.WebPage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Glyph="&#xE945;"/>
+                        <TextBlock Text="INSTANT VIEW" Margin="12,0,0,0"/>
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+        </Grid>
+    </DataTemplate>
+    
+    <DataTemplate x:Key="WebPageDocumentMediaTemplate">
+        <Grid Margin="0,8,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            <Rectangle Fill="{ThemeResource MessageHeaderBorderBrush}" Width="2" Margin="0,0,8,0"/>
+
+            <StackPanel Grid.Column="1">
+                <StackPanel Margin="0,0,0,8" Visibility="{Binding Media.WebPage.SummaryVisibility}">
+                    <TextBlock Text="{Binding Media.WebPage.SiteName}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.SiteNameVisibility}" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Author}" MaxLines="1" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.AuthorVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Title}" MaxLines="2" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.TitleVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
+                    <TextBlock Text="{Binding Media.WebPage.Description}" MaxLines="3" TextTrimming="CharacterEllipsis" Visibility="{Binding Media.WebPage.DescriptionVisibility}" Foreground="{ThemeResource MessageForegroundBrush}" Style="{ThemeResource BodyTextBlockStyle}"/>
+                </StackPanel>
+
+                <!-- TODO: video timing -->
+                <Grid MinWidth="260" HorizontalAlignment="Left">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Grid Width="48" Height="48" CornerRadius="24" Background="{ThemeResource MessageMediaBackgroundBrush}" VerticalAlignment="Top">
+                        <controls:TransferButton Click="DownloadDocument_Click" Media="{Binding Media}" Foreground="{ThemeResource MessageMediaForegroundBrush}" CornerRadius="24"/>
+                        <controls:ProgressBarRing Background="Transparent" Foreground="{ThemeResource MessageMediaForegroundBrush}" Value="{Binding Media.Progress}" IsHitTestVisible="False"/>
+                    </Grid>
+                    <StackPanel Margin="8,0,0,2" VerticalAlignment="Center" Grid.Column="1">
+                        <TextBlock Text="{Binding Media.WebPage.Document.FileName}" Foreground="{ThemeResource MessageForegroundBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{ThemeResource BaseTextBlockStyle}"/>
+                        <TextBlock Text="{Binding Media.WebPage.Document.Size, Converter={StaticResource FileSizeConverter}}" Foreground="{ThemeResource MessageForegroundBrush}" TextWrapping="NoWrap" TextTrimming="CharacterEllipsis" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                    </StackPanel>
+                </Grid>
+
+                <Button Click="InstantView_Click" 
+                        Margin="0,6,0,0" 
+                        Background="Transparent"
+                        BorderBrush="{ThemeResource MessageHeaderBorderBrush}"
+                        Foreground="{ThemeResource MessageHeaderForegroundBrush}"
+                        RequestedTheme="{ThemeResource MessageTextBlockTheme}"
+                        Visibility="{Binding Media.WebPage.HasCachedPage, Converter={StaticResource BooleanToVisibilityConverter}}">
                     <StackPanel Orientation="Horizontal">
                         <FontIcon Glyph="&#xE945;"/>
                         <TextBlock Text="INSTANT VIEW" Margin="12,0,0,0"/>
@@ -332,19 +402,23 @@
             <StackPanel Grid.Column="1">
                 <StackPanel Margin="0,0,0,8">
                     <TextBlock Text="{Binding Media.Game.Title}" MaxLines="1" TextTrimming="CharacterEllipsis" Foreground="{ThemeResource MessageHeaderForegroundBrush}" Style="{ThemeResource BaseTextBlockStyle}"/>
-                    <RichTextBlock common:MessageHelper.Message="{x:Bind Self, Mode=OneWay}" Style="{ThemeResource BodyRichTextBlockStyle}" Foreground="{ThemeResource MessageForegroundBrush}" Tag="Game"/>
+                    <RichTextBlock common:MessageHelper.Message="{x:Bind Self, Mode=OneWay}" Style="{ThemeResource BodyRichTextBlockStyle}" Foreground="{ThemeResource MessageForegroundBrush}" Tag="Game">
+                        <RichTextBlock.Resources>
+                            <StaticResource x:Key="MessageHyperlinkForegroundBrush" ResourceKey="MessageHyperlinkForegroundBrush"/>
+                        </RichTextBlock.Resources>
+                    </RichTextBlock>
                 </StackPanel>
 
                 <Grid Background="Black" 
                       MinWidth="{ThemeResource TelegramMediaMinWidth}" 
                       MinHeight="{ThemeResource TelegramMediaMinHeight}"
                       HorizontalAlignment="Left">
-                    <controls:ImageView Source="{Binding Media.Game.Document, Converter={StaticResource DefaultPhotoConverter}}"
+                    <controls:ImageView Source="{Binding Media.Game.Document, Converter={StaticResource DefaultPhotoConverter}, ConverterParameter=thumbnail}"
                                         Constraint="{Binding Media.Game.Document}" 
                                         MaxWidth="{ThemeResource TelegramMediaMaxWidth}" 
                                         MaxHeight="{ThemeResource TelegramMediaMaxHeight}"/>
 
-                    <Border Background="{ThemeResource MessageOverlayBackgroundBrush}" VerticalAlignment="Bottom" HorizontalAlignment="Right" Padding="6,2,6,4" Margin="4">
+                    <Border Background="{ThemeResource MessageOverlayBackgroundBrush}" VerticalAlignment="Bottom" HorizontalAlignment="Right" Padding="8,2,8,4" Margin="4">
                         <TextBlock Text="GAME" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="White" TextAlignment="Right" Margin="0,2,0,0"/>
                     </Border>
                 </Grid>
@@ -356,18 +430,21 @@
 
 
     <selectors:MediaTemplateSelector x:Key="MediaTemplateSelector"
-        EmptyTemplate="{StaticResource MediaEmptyTemplate}"
-        AudioTemplate="{StaticResource MediaAudioTemplate}"
-        DocumentTemplate="{StaticResource MediaDocumentTemplate}"
-        DocumentThumbTemplate="{StaticResource MediaDocumentThumbTemplate}"
-        GameTemplate="{StaticResource GameMediaTemplate}"
-        GeoPointTemplate="{StaticResource MediaGeoPointTemplate}"
-        GifTemplate="{StaticResource MediaGifTemplate}"
-        PhotoTemplate="{StaticResource MediaPhotoTemplate}"
-        VideoTemplate="{StaticResource MediaVideoTemplate}"
-        WebPageTemplate="{StaticResource WebPageMediaTemplate}"
-        WebPageGifTemplate="{StaticResource WebPageGifMediaTemplate}"
-        WebPagePhotoTemplate="{StaticResource WebPagePhotoMediaTemplate}"
-        WebPageSmallPhotoTemplate="{StaticResource WebPageSmallPhotoMediaTemplate}"/>
+                                     EmptyTemplate="{StaticResource MediaEmptyTemplate}"
+                                     AudioTemplate="{StaticResource MediaAudioTemplate}"
+                                     ContactTemplate="{StaticResource ContactMediaTemplate}"
+                                     DocumentTemplate="{StaticResource MediaDocumentTemplate}"
+                                     DocumentThumbTemplate="{StaticResource MediaDocumentThumbTemplate}"
+                                     GameTemplate="{StaticResource GameMediaTemplate}"
+                                     GeoPointTemplate="{StaticResource MediaGeoPointTemplate}"
+                                     GifTemplate="{StaticResource MediaGifTemplate}"
+                                     PhotoTemplate="{StaticResource MediaPhotoTemplate}"
+                                     VideoTemplate="{StaticResource MediaVideoTemplate}"
+                                     VenueTemplate="{StaticResource MediaVenueTemplate}"
+                                     WebPageTemplate="{StaticResource WebPageMediaTemplate}"
+                                     WebPageGifTemplate="{StaticResource WebPageGifMediaTemplate}"
+                                     WebPageDocumentTemplate="{StaticResource WebPageDocumentMediaTemplate}"
+                                     WebPagePhotoTemplate="{StaticResource WebPagePhotoMediaTemplate}"
+                                     WebPageSmallPhotoTemplate="{StaticResource WebPageSmallPhotoMediaTemplate}"/>
 
 </ResourceDictionary>
